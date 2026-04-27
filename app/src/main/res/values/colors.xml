@@ -10,8 +10,12 @@
     <color name="primary_dark">#B71C1C</color>
     <color name="background">#121212</color>
     <color name="surface">#1E1E1E</color>
+    <color name="surface_variant">#2C2C2C</color>
     <color name="text_primary">#FFFFFF</color>
     <color name="text_secondary">#B0B0B0</color>
+    <color name="divider">#333333</color>
+    <color name="positive">#4CAF50</color>
+    <color name="negative">#F44336</color>
     <color name="success">#4CAF50</color>
     <color name="warning">#FF9800</color>
     <color name="error">#F44336</color>
