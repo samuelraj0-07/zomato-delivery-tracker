@@ -9,17 +9,19 @@ import com.delivery.tracker.data.model.*
 @Database(
     entities = [
         Trip::class,
+        SubOrder::class,
         DailySession::class,
         FuelEntry::class,
         ServiceEntry::class,
         TdsEntry::class,
         ServiceCycle::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun tripDao(): TripDao
+    abstract fun subOrderDao(): SubOrderDao
     abstract fun sessionDao(): SessionDao
     abstract fun expenseDao(): ExpenseDao
     abstract fun serviceCycleDao(): ServiceCycleDao
@@ -33,7 +35,9 @@ abstract class AppDatabase : RoomDatabase() {
                     context.applicationContext,
                     AppDatabase::class.java,
                     "delivery_tracker.db"
-                ).build().also { INSTANCE = it }
+                )
+                .fallbackToDestructiveMigration()
+                .build().also { INSTANCE = it }
             }
         }
     }

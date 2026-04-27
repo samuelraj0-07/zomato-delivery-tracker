@@ -13,12 +13,12 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object DatabaseModule {
 
-    @Provides
-    @Singleton
+    @Provides @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase =
         AppDatabase.getInstance(context)
 
     @Provides fun provideTripDao(db: AppDatabase): TripDao = db.tripDao()
+    @Provides fun provideSubOrderDao(db: AppDatabase): SubOrderDao = db.subOrderDao()
     @Provides fun provideSessionDao(db: AppDatabase): SessionDao = db.sessionDao()
     @Provides fun provideExpenseDao(db: AppDatabase): ExpenseDao = db.expenseDao()
     @Provides fun provideCycleDao(db: AppDatabase): ServiceCycleDao = db.serviceCycleDao()

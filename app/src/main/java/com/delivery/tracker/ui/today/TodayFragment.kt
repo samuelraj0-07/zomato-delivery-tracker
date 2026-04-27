@@ -67,14 +67,15 @@ class TodayFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        tripAdapter = TripAdapter { trip ->
+    tripAdapter = TripAdapter(
+        onDelete = { trip ->
             viewModel.deleteTrip(trip)
+        },
+        getSubOrders = { tripId, callback ->
+            viewModel.getSubOrdersForTrip(tripId)
+                .observe(viewLifecycleOwner) { callback(it) }
         }
-        binding.rvTrips.apply {
-            adapter = tripAdapter
-            layoutManager = LinearLayoutManager(requireContext())
-        }
-    }
+    )
 
     private fun setupObservers() {
         viewModel.todayTrips.observe(viewLifecycleOwner) { trips ->

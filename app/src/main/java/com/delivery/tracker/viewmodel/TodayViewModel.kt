@@ -1,8 +1,10 @@
 package com.delivery.tracker.viewmodel
 
 import androidx.lifecycle.*
+import com.delivery.tracker.data.db.SubOrderDao
 import com.delivery.tracker.data.model.*
 import com.delivery.tracker.data.repository.*
+import com.delivery.tracker.ocr.OcrResult
 import com.delivery.tracker.utils.DateUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
@@ -14,8 +16,8 @@ data class TodaySummary(
     val totalExtras: Double = 0.0,
     val totalScreenshotDistance: Double = 0.0,
     val actualDistance: Double = 0.0,
-    val ratePerKmLive: Double = 0.0,      // order pay / screenshot distance
-    val ratePerKmActual: Double = 0.0,    // order pay / odometer distance
+    val ratePerKmLive: Double = 0.0,
+    val ratePerKmActual: Double = 0.0,
     val deadKm: Double = 0.0,
     val isSessionEnded: Boolean = false
 )
@@ -24,7 +26,8 @@ data class TodaySummary(
 class TodayViewModel @Inject constructor(
     private val tripRepo: TripRepository,
     private val sessionRepo: SessionRepository,
-    private val cycleRepo: CycleRepository
+    private val cycleRepo: CycleRepository,
+    private val subOrderDao: SubOrderDao
 ) : ViewModel() {
 
     private val _activeSession = sessionRepo.getActiveSession()
@@ -36,9 +39,6 @@ class TodayViewModel @Inject constructor(
     private val _todaySummary = MutableLiveData<TodaySummary>()
     val todaySummary: LiveData<TodaySummary> = _todaySummary
 
-    private val _ocrError = MutableLiveData<String?>()
-    val ocrError: LiveData<String?> = _ocrError
-
     private val _sessionStarted = MutableLiveData<Boolean>()
     val sessionStarted: LiveData<Boolean> = _sessionStarted
 
@@ -46,7 +46,6 @@ class TodayViewModel @Inject constructor(
     val sessionEnded: LiveData<Boolean> = _sessionEnded
 
     init {
-        // Load today's trips whenever active session changes
         _activeSession.observeForever { session ->
             session?.let { loadTodayTrips(it.id) }
         }
@@ -66,20 +65,14 @@ class TodayViewModel @Inject constructor(
         val totalScreenshotDist = trips.sumOf { it.screenshotDistance }
         val actualDist = session?.actualDistance ?: 0.0
 
-        val ratePerKmLive = if (totalScreenshotDist > 0)
-            totalOrderPay / totalScreenshotDist else 0.0
-
-        val ratePerKmActual = if (actualDist > 0)
-            totalOrderPay / actualDist else 0.0
-
         _todaySummary.value = TodaySummary(
             totalTrips = trips.size,
             totalOrderPay = totalOrderPay,
             totalExtras = totalExtras,
             totalScreenshotDistance = totalScreenshotDist,
             actualDistance = actualDist,
-            ratePerKmLive = ratePerKmLive,
-            ratePerKmActual = ratePerKmActual,
+            ratePerKmLive = if (totalScreenshotDist > 0) totalOrderPay / totalScreenshotDist else 0.0,
+            ratePerKmActual = if (actualDist > 0) totalOrderPay / actualDist else 0.0,
             deadKm = (actualDist - totalScreenshotDist).coerceAtLeast(0.0),
             isSessionEnded = session?.isEnded ?: false
         )
@@ -88,17 +81,15 @@ class TodayViewModel @Inject constructor(
     fun startDay(startOdometer: Double) {
         viewModelScope.launch {
             val existing = sessionRepo.getActiveSessionOnce()
-            if (existing != null) {
-                _sessionStarted.value = true
-                return@launch
-            }
+            if (existing != null) { _sessionStarted.value = true; return@launch }
             val cycle = cycleRepo.getActiveCycleOnce()
-            val session = DailySession(
-                dateMillis = DateUtils.startOfDay(),
-                startOdometer = startOdometer,
-                serviceCycleId = cycle?.id ?: 0L
+            sessionRepo.startSession(
+                DailySession(
+                    dateMillis = DateUtils.startOfDay(),
+                    startOdometer = startOdometer,
+                    serviceCycleId = cycle?.id ?: 0L
+                )
             )
-            sessionRepo.startSession(session)
             _sessionStarted.value = true
         }
     }
@@ -106,15 +97,8 @@ class TodayViewModel @Inject constructor(
     fun endDay(endOdometer: Double) {
         viewModelScope.launch {
             val session = sessionRepo.getActiveSessionOnce() ?: return@launch
-            sessionRepo.updateSession(
-                session.copy(
-                    endOdometer = endOdometer,
-                    isEnded = true
-                )
-            )
-            // Recalculate with actual distance
-            val trips = _todayTrips.value ?: emptyList()
-            recalculateSummary(trips)
+            sessionRepo.updateSession(session.copy(endOdometer = endOdometer, isEnded = true))
+            recalculateSummary(_todayTrips.value ?: emptyList())
             _sessionEnded.value = true
         }
     }
@@ -132,19 +116,50 @@ class TodayViewModel @Inject constructor(
         }
     }
 
-    fun deleteTrip(trip: Trip) {
+    fun addTripFromOcr(ocrResult: OcrResult) {
         viewModelScope.launch {
-            tripRepo.deleteTrip(trip)
+            val session = sessionRepo.getActiveSessionOnce() ?: return@launch
+            val tripId = tripRepo.addTrip(
+                Trip(
+                    sessionId          = session.id,
+                    restaurantName     = ocrResult.restaurantName,
+                    assignedTime       = ocrResult.assignedTime,
+                    orderPay           = ocrResult.orderPay,
+                    screenshotDistance = ocrResult.distance,
+                    incentivePay       = ocrResult.incentivePay,
+                    tips               = ocrResult.tips,
+                    surgePay           = ocrResult.surgePay,
+                    dateMillis         = System.currentTimeMillis(),
+                    servicecycleId     = session.serviceCycleId
+                )
+            )
+            if (ocrResult.subOrders.isNotEmpty()) {
+                subOrderDao.insertAll(
+                    ocrResult.subOrders.map { s ->
+                        SubOrder(
+                            tripId             = tripId,
+                            orderNumber        = s.orderNumber,
+                            restaurantName     = s.restaurantName,
+                            dropLocationName   = s.dropLocationName,
+                            pickupDistanceKm   = s.pickupDistanceKm,
+                            dropDistanceKm     = s.dropDistanceKm,
+                            orderAssignedTime  = s.orderAssignedTime,
+                            orderPickedTime    = s.orderPickedTime,
+                            orderDeliveredTime = s.orderDeliveredTime
+                        )
+                    }
+                )
+            }
         }
+    }
+
+    fun getSubOrdersForTrip(tripId: Long) = subOrderDao.getSubOrdersForTrip(tripId)
+
+    fun deleteTrip(trip: Trip) {
+        viewModelScope.launch { tripRepo.deleteTrip(trip) }
     }
 
     fun updateTrip(trip: Trip) {
-        viewModelScope.launch {
-            tripRepo.updateTrip(trip)
-        }
-    }
-
-    fun clearOcrError() {
-        _ocrError.value = null
+        viewModelScope.launch { tripRepo.updateTrip(trip) }
     }
 }

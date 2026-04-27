@@ -4,22 +4,19 @@ import android.graphics.Bitmap
 import android.util.Base64
 import android.util.Log
 import java.io.ByteArrayOutputStream
-import org.json.JSONObject
 import org.json.JSONArray
+import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
 
 object ZomatoOcrParser {
 
     private const val TAG = "ZomatoOcrParser"
-
-    // ── paste your Gemini API key here ──
-    private const val GEMINI_API_KEY = "AIzaSyBzKf_574PadPq0K3FDn3xlKcgtN1IDjoM"
+    private const val GEMINI_API_KEY = "YOUR_GEMINI_API_KEY_HERE"
     private const val GEMINI_URL =
         "https://generativelanguage.googleapis.com/v1beta/models/" +
         "gemini-1.5-flash:generateContent?key=$GEMINI_API_KEY"
 
-    // Called from background thread / coroutine
     fun parseWithGemini(bitmap: Bitmap): OcrResult {
         return try {
             val base64Image = bitmapToBase64(bitmap)
@@ -40,22 +37,38 @@ object ZomatoOcrParser {
 
     private fun buildRequestJson(base64Image: String): String {
         val prompt = """
-            This is a Zomato delivery app trip details screenshot.
-            Extract ONLY these fields and return ONLY a valid JSON object, nothing else:
+            This is a Zomato delivery partner trip details screenshot.
+            There may be ONE or MULTIPLE orders (Order 1, Order 2, etc).
+            Each order has its own PICKUP section with a restaurant name
+            and its own DROP section with a customer name.
+            Different orders may have DIFFERENT restaurants.
+
+            Extract all data and return ONLY this exact JSON, nothing else, no markdown:
             {
-              "restaurantName": "exact restaurant name from PICKUP section",
-              "orderPay": numeric value of Order pay (no currency symbol),
-              "incentivePay": numeric value of Incentive pay (0 if not present),
-              "tips": numeric value of Tips (0 if not present),
-              "surgePay": numeric value of any surge or rain surge pay (0 if not present),
-              "totalEarnings": numeric value of Total earnings,
-              "pickupDistance": numeric value of Distance travelled under PICKUP section,
-              "dropDistance": numeric value of Distance travelled under DROP section,
-              "totalDistance": sum of pickup and drop distances,
-              "orderAssignedTime": time shown next to Order assigned,
-              "screenType": "TRIP_END"
+              "totalEarnings": numeric total earnings amount,
+              "orderPay": numeric Order pay amount,
+              "incentivePay": numeric Incentive pay (0 if absent),
+              "tips": numeric Tips (0 if absent),
+              "surgePay": numeric surge or rain surge pay (0 if absent),
+              "isMultiOrder": true if more than one order exists,
+              "orders": [
+                {
+                  "orderNumber": 1,
+                  "restaurantName": "restaurant name from THIS order PICKUP section",
+                  "dropLocationName": "customer name from THIS order DROP section",
+                  "pickupDistanceKm": numeric distance under THIS order PICKUP (0 if missing),
+                  "dropDistanceKm": numeric distance under THIS order DROP (0 if missing),
+                  "orderAssignedTime": "time next to Order assigned for this order",
+                  "orderPickedTime": "time next to Order picked for this order",
+                  "orderDeliveredTime": "time next to Order delivered for this order"
+                }
+              ]
             }
-            Return ONLY the JSON. No explanation, no markdown, no backticks.
+
+            Critical rules:
+            - Each order must have its OWN restaurantName from its own PICKUP section
+            - If orders come from different restaurants use different names
+            - Return ONLY raw JSON, no explanation, no backticks
         """.trimIndent()
 
         return JSONObject().apply {
@@ -68,15 +81,13 @@ object ZomatoOcrParser {
                                 put("data", base64Image)
                             })
                         })
-                        put(JSONObject().apply {
-                            put("text", prompt)
-                        })
+                        put(JSONObject().apply { put("text", prompt) })
                     })
                 })
             })
             put("generationConfig", JSONObject().apply {
                 put("temperature", 0)
-                put("maxOutputTokens", 512)
+                put("maxOutputTokens", 1024)
             })
         }.toString()
     }
@@ -96,7 +107,7 @@ object ZomatoOcrParser {
     }
 
     private fun parseGeminiResponse(responseText: String): OcrResult {
-        Log.d(TAG, "Gemini raw response: $responseText")
+        Log.d(TAG, "Gemini response: $responseText")
 
         val root = JSONObject(responseText)
         val text = root
@@ -107,36 +118,63 @@ object ZomatoOcrParser {
             .getJSONObject(0)
             .getString("text")
             .trim()
-
-        Log.d(TAG, "Gemini extracted text: $text")
-
-        // Clean any accidental markdown backticks
-        val clean = text
             .removePrefix("```json")
             .removePrefix("```")
             .removeSuffix("```")
             .trim()
 
-        val json = JSONObject(clean)
+        Log.d(TAG, "Parsed JSON: $text")
+        val json = JSONObject(text)
+
+        val ordersArray = json.optJSONArray("orders") ?: JSONArray()
+        val subOrders = mutableListOf<SubOrderResult>()
+
+        for (i in 0 until ordersArray.length()) {
+            val o = ordersArray.getJSONObject(i)
+            subOrders.add(
+                SubOrderResult(
+                    orderNumber        = o.optInt("orderNumber", i + 1),
+                    restaurantName     = o.optString("restaurantName", ""),
+                    dropLocationName   = o.optString("dropLocationName", ""),
+                    pickupDistanceKm   = o.optDouble("pickupDistanceKm", 0.0),
+                    dropDistanceKm     = o.optDouble("dropDistanceKm", 0.0),
+                    orderAssignedTime  = o.optString("orderAssignedTime", ""),
+                    orderPickedTime    = o.optString("orderPickedTime", ""),
+                    orderDeliveredTime = o.optString("orderDeliveredTime", "")
+                )
+            )
+        }
+
+        val isMultiOrder = json.optBoolean("isMultiOrder", false)
+        val totalDistance = subOrders.sumOf { it.totalDistanceKm }
+        val firstTime = subOrders.firstOrNull()?.orderAssignedTime ?: ""
+
+        val restaurantName = when {
+            subOrders.size == 1 -> subOrders[0].restaurantName
+            subOrders.size > 1 -> {
+                val unique = subOrders.map { it.restaurantName }.distinct()
+                if (unique.size == 1) unique[0]
+                else "Multi-order"
+            }
+            else -> ""
+        }
 
         return OcrResult(
-            restaurantName  = json.optString("restaurantName", ""),
-            orderPay        = json.optDouble("orderPay", 0.0),
-            incentivePay    = json.optDouble("incentivePay", 0.0),
-            tips            = json.optDouble("tips", 0.0),
-            surgePay        = json.optDouble("surgePay", 0.0),
-            distance        = json.optDouble("totalDistance", 0.0),
-            assignedTime    = json.optString("orderAssignedTime", ""),
-            screenType      = ScreenType.TRIP_END
+            restaurantName = restaurantName,
+            orderPay       = json.optDouble("orderPay", 0.0),
+            incentivePay   = json.optDouble("incentivePay", 0.0),
+            tips           = json.optDouble("tips", 0.0),
+            surgePay       = json.optDouble("surgePay", 0.0),
+            distance       = totalDistance,
+            assignedTime   = firstTime,
+            screenType     = ScreenType.TRIP_END,
+            subOrders      = subOrders,
+            isMultiOrder   = isMultiOrder
         )
     }
 
-    // ── Fallback regex parser (used if Gemini fails) ──
     fun parseWithRegex(rawText: String): OcrResult {
-        val text = rawText.lowercase()
         val lines = rawText.lines().map { it.trim() }.filter { it.isNotEmpty() }
-
-        // Restaurant name → bold line right after "PICKUP"
         var restaurantName = ""
         for (i in lines.indices) {
             if (lines[i].contains("PICKUP", ignoreCase = true) && i + 1 < lines.size) {
@@ -144,33 +182,21 @@ object ZomatoOcrParser {
                 break
             }
         }
-
-        // Order pay
-        val orderPayRegex = Regex("""(?i)order\s*pay\s*[₹]?\s*(\d+\.?\d*)""")
-        val orderPay = orderPayRegex.find(rawText)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-
-        // Incentive pay
-        val incentiveRegex = Regex("""(?i)incentive\s*pay\s*[₹]?\s*(\d+\.?\d*)""")
-        val incentivePay = incentiveRegex.find(rawText)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
-
-        // All distances → sum them
-        val distRegex = Regex("""(\d+\.?\d*)\s*km""")
-        val distances = distRegex.findAll(rawText).map {
-            it.groupValues[1].toDoubleOrNull() ?: 0.0
-        }.toList()
-        val totalDistance = distances.sum()
-
-        // Order assigned time
-        val timeRegex = Regex("""(?i)order\s*assigned\s+(\d{1,2}:\d{2}\s*(?:am|pm))""")
-        val assignedTime = timeRegex.find(rawText)?.groupValues?.get(1) ?: ""
-
+        val orderPay = Regex("""(?i)order\s*pay\s*[₹]?\s*(\d+\.?\d*)""")
+            .find(rawText)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+        val incentivePay = Regex("""(?i)incentive\s*pay\s*[₹]?\s*(\d+\.?\d*)""")
+            .find(rawText)?.groupValues?.get(1)?.toDoubleOrNull() ?: 0.0
+        val totalDistance = Regex("""(\d+\.?\d*)\s*km""")
+            .findAll(rawText).sumOf { it.groupValues[1].toDoubleOrNull() ?: 0.0 }
+        val assignedTime = Regex("""(?i)order\s*assigned\s+(\d{1,2}:\d{2}\s*(?:am|pm))""")
+            .find(rawText)?.groupValues?.get(1) ?: ""
         return OcrResult(
             restaurantName = restaurantName,
-            orderPay = orderPay,
-            incentivePay = incentivePay,
-            distance = totalDistance,
-            assignedTime = assignedTime,
-            screenType = ScreenType.TRIP_END
+            orderPay       = orderPay,
+            incentivePay   = incentivePay,
+            distance       = totalDistance,
+            assignedTime   = assignedTime,
+            screenType     = ScreenType.TRIP_END
         )
     }
 }
