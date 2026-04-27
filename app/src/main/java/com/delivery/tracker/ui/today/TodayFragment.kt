@@ -25,6 +25,11 @@ import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
 import com.delivery.tracker.viewmodel.TodayViewModel
 import dagger.hilt.android.AndroidEntryPoint
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import androidx.lifecycle.lifecycleScope
+import com.google.android.gms.tasks.Tasks
 import java.io.InputStream
 
 @AndroidEntryPoint
@@ -200,14 +205,23 @@ class TodayFragment : Fragment() {
     }
 
     private fun runOcr(uri: Uri) {
-        try {
-            val stream: InputStream? = requireContext().contentResolver.openInputStream(uri)
-            val bitmap: Bitmap = BitmapFactory.decodeStream(stream)
-            val image = InputImage.fromBitmap(bitmap, 0)
+        Toast.makeText(requireContext(), "Scanning with AI... ⏳", Toast.LENGTH_SHORT).show()
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val stream: InputStream? = requireContext().contentResolver.openInputStream(uri)
+                val bitmap: Bitmap = BitmapFactory.decodeStream(stream)
 
-            recognizer.process(image)
-                .addOnSuccessListener { visionText ->
-                    val result = ZomatoOcrParser.parse(visionText.text)
+                // Try Gemini first, fallback to ML Kit regex
+                var result = ZomatoOcrParser.parseWithGemini(bitmap)
+
+                // Fallback: if Gemini returns empty, use ML Kit + regex
+                if (result.restaurantName.isEmpty() && result.orderPay == 0.0) {
+                    val image = InputImage.fromBitmap(bitmap, 0)
+                    val visionText = Tasks.await(recognizer.process(image))
+                    result = ZomatoOcrParser.parseWithRegex(visionText.text)
+                }
+
+                withContext(Dispatchers.Main) {
                     binding.apply {
                         if (result.restaurantName.isNotEmpty())
                             etRestaurant.setText(result.restaurantName)
@@ -225,15 +239,15 @@ class TodayFragment : Fragment() {
                             etIncentive.setText(result.incentivePay.toString())
                     }
                     Toast.makeText(requireContext(),
-                        "Screenshot scanned ✅ Check and edit fields",
+                        "AI scanned ✅ Check and edit if needed",
                         Toast.LENGTH_LONG).show()
                 }
-                .addOnFailureListener {
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
                     Toast.makeText(requireContext(),
-                        "OCR failed. Fill manually.", Toast.LENGTH_SHORT).show()
+                        "Scan failed. Fill manually.", Toast.LENGTH_SHORT).show()
                 }
-        } catch (e: Exception) {
-            Toast.makeText(requireContext(), "Could not load image", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
