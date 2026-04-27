@@ -63,7 +63,7 @@
                             app:boxBackgroundColor="@color/surface_variant"
                             app:boxStrokeColor="@color/primary"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            app:hint="Start km">
+                           >
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/et_start_odometer"
                                 android:layout_width="match_parent"
@@ -79,7 +79,7 @@
                             app:boxBackgroundColor="@color/surface_variant"
                             app:boxStrokeColor="@color/primary"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            app:hint="End km">
+                           >
                             <com.google.android.material.textfield.TextInputEditText
                                 android:id="@+id/et_end_odometer"
                                 android:layout_width="match_parent"
@@ -168,9 +168,9 @@
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         app:boxBackgroundColor="@color/surface_variant"
                         app:boxStrokeColor="@color/primary"
-                        app:hint="Restaurant Name">
+                       >
                         <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_restaurant"
+                            android:id="@+id/et_restaurant" android:hint="Restaurant Name"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textColor="@color/text_primary"
@@ -184,9 +184,9 @@
                         style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                         app:boxBackgroundColor="@color/surface_variant"
                         app:boxStrokeColor="@color/primary"
-                        app:hint="Assigned Time (e.g. 12:30 PM)">
+                       >
                         <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/et_assigned_time"
+                            android:id="@+id/et_assigned_time" android:hint="Assigned Time (e.g. 12:30 PM)"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:textColor="@color/text_primary"/>
@@ -206,9 +206,9 @@
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
                             app:boxStrokeColor="@color/primary"
-                            app:hint="Order Pay (₹)">
+                           >
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_order_pay"
+                                android:id="@+id/et_order_pay" android:hint="Order Pay (₹)"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"
@@ -222,9 +222,9 @@
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
                             app:boxStrokeColor="@color/primary"
-                            app:hint="Distance (km)">
+                           >
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_distance"
+                                android:id="@+id/et_distance" android:hint="Distance (km)"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"
@@ -247,9 +247,9 @@
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
                             app:boxStrokeColor="@color/primary"
-                            app:hint="Tips ₹">
+                           >
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_tips"
+                                android:id="@+id/et_tips" android:hint="Tips ₹"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"
@@ -263,9 +263,9 @@
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
                             app:boxStrokeColor="@color/primary"
-                            app:hint="Surge ₹">
+                           >
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_surge"
+                                android:id="@+id/et_surge" android:hint="Surge ₹"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"
@@ -279,9 +279,9 @@
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
                             app:boxStrokeColor="@color/primary"
-                            app:hint="Incentive ₹">
+                           >
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_incentive"
+                                android:id="@+id/et_incentive" android:hint="Incentive ₹"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:inputType="numberDecimal"

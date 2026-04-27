@@ -57,9 +57,9 @@
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
-                            app:boxStrokeColor="@color/primary" app:hint="Odometer Reading (km)">
+                            app:boxStrokeColor="@color/primary">
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_fuel_odometer" android:layout_width="match_parent"
+                                android:id="@+id/et_fuel_odometer" android:hint="Odometer Reading (km)" android:layout_width="match_parent"
                                 android:layout_height="wrap_content" android:inputType="numberDecimal"
                                 android:textColor="@color/text_primary"/>
                         </com.google.android.material.textfield.TextInputLayout>
@@ -72,9 +72,9 @@
                                 android:layout_weight="1"
                                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                                 app:boxBackgroundColor="@color/surface_variant"
-                                app:boxStrokeColor="@color/primary" app:hint="Price/Litre (₹)">
+                                app:boxStrokeColor="@color/primary">
                                 <com.google.android.material.textfield.TextInputEditText
-                                    android:id="@+id/et_fuel_price" android:layout_width="match_parent"
+                                    android:id="@+id/et_fuel_price" android:hint="Price/Litre (₹)" android:layout_width="match_parent"
                                     android:layout_height="wrap_content" android:inputType="numberDecimal"
                                     android:textColor="@color/text_primary"/>
                             </com.google.android.material.textfield.TextInputLayout>
@@ -84,9 +84,9 @@
                                 android:layout_weight="1"
                                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                                 app:boxBackgroundColor="@color/surface_variant"
-                                app:boxStrokeColor="@color/primary" app:hint="Amount Spent (₹)">
+                                app:boxStrokeColor="@color/primary">
                                 <com.google.android.material.textfield.TextInputEditText
-                                    android:id="@+id/et_fuel_amount" android:layout_width="match_parent"
+                                    android:id="@+id/et_fuel_amount" android:hint="Amount Spent (₹)" android:layout_width="match_parent"
                                     android:layout_height="wrap_content" android:inputType="numberDecimal"
                                     android:textColor="@color/text_primary"/>
                             </com.google.android.material.textfield.TextInputLayout>
@@ -121,9 +121,9 @@
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
-                            app:boxStrokeColor="@color/primary" app:hint="Odometer Reading (km)">
+                            app:boxStrokeColor="@color/primary">
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_service_odometer" android:layout_width="match_parent"
+                                android:id="@+id/et_service_odometer" android:hint="Odometer Reading (km)" android:layout_width="match_parent"
                                 android:layout_height="wrap_content" android:inputType="numberDecimal"
                                 android:textColor="@color/text_primary"/>
                         </com.google.android.material.textfield.TextInputLayout>
@@ -132,9 +132,9 @@
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
-                            app:boxStrokeColor="@color/primary" app:hint="Amount Spent (₹)">
+                            app:boxStrokeColor="@color/primary">
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_service_amount" android:layout_width="match_parent"
+                                android:id="@+id/et_service_amount" android:hint="Amount Spent (₹)" android:layout_width="match_parent"
                                 android:layout_height="wrap_content" android:inputType="numberDecimal"
                                 android:textColor="@color/text_primary"/>
                         </com.google.android.material.textfield.TextInputLayout>
@@ -143,9 +143,9 @@
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
-                            app:boxStrokeColor="@color/primary" app:hint="Details (e.g. Oil change)">
+                            app:boxStrokeColor="@color/primary">
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_service_details" android:layout_width="match_parent"
+                                android:id="@+id/et_service_details" android:hint="Details (e.g. Oil change)" android:layout_width="match_parent"
                                 android:layout_height="wrap_content" android:inputType="textCapSentences"
                                 android:textColor="@color/text_primary"/>
                         </com.google.android.material.textfield.TextInputLayout>
@@ -179,9 +179,9 @@
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
-                            app:boxStrokeColor="@color/primary" app:hint="Week Label (e.g. Week 1 - Apr)">
+                            app:boxStrokeColor="@color/primary">
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_tds_week" android:layout_width="match_parent"
+                                android:id="@+id/et_tds_week" android:hint="Week Label (e.g. Week 1 - Apr)" android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:textColor="@color/text_primary"/>
                         </com.google.android.material.textfield.TextInputLayout>
@@ -190,9 +190,9 @@
                             android:layout_width="match_parent" android:layout_height="wrap_content"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
-                            app:boxStrokeColor="@color/primary" app:hint="TDS Amount (₹)">
+                            app:boxStrokeColor="@color/primary">
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_tds_amount" android:layout_width="match_parent"
+                                android:id="@+id/et_tds_amount" android:hint="TDS Amount (₹)" android:layout_width="match_parent"
                                 android:layout_height="wrap_content" android:inputType="numberDecimal"
                                 android:textColor="@color/text_primary"/>
                         </com.google.android.material.textfield.TextInputLayout>
