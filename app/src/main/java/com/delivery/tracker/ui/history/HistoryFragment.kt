@@ -41,7 +41,10 @@ class HistoryFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-        tripAdapter = TripAdapter { }  // no delete in history
+        tripAdapter = TripAdapter(
+            onDelete = { },
+            getSubOrders = { _, _ -> }
+        )
         binding.rvHistoryTrips.apply {
             adapter = tripAdapter
             layoutManager = LinearLayoutManager(requireContext())
