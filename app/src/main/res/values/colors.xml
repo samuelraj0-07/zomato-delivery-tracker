@@ -6,6 +6,7 @@
     <color name="colorPrimaryDark">#B71C1C</color>
     <color name="colorAccent">#FF5722</color>
     <color name="primary">#E53935</color>
+    <color name="secondary">#FF5722</color>
     <color name="primary_dark">#B71C1C</color>
     <color name="background">#121212</color>
     <color name="surface">#1E1E1E</color>
