@@ -67,15 +67,20 @@ class TodayFragment : Fragment() {
     }
 
     private fun setupRecyclerView() {
-    tripAdapter = TripAdapter(
-        onDelete = { trip ->
-            viewModel.deleteTrip(trip)
-        },
-        getSubOrders = { tripId, callback ->
-            viewModel.getSubOrdersForTrip(tripId)
-                .observe(viewLifecycleOwner) { callback(it) }
+        tripAdapter = TripAdapter(
+            onDelete = { trip ->
+                viewModel.deleteTrip(trip)
+            },
+            getSubOrders = { tripId, callback ->
+                viewModel.getSubOrdersForTrip(tripId)
+                    .observe(viewLifecycleOwner) { callback(it) }
+            }
+        )
+        binding.rvTrips.apply {
+            adapter = tripAdapter
+            layoutManager = LinearLayoutManager(requireContext())
         }
-    )
+    }
 
     private fun setupObservers() {
         viewModel.todayTrips.observe(viewLifecycleOwner) { trips ->
@@ -91,7 +96,6 @@ class TodayFragment : Fragment() {
                 tvTotalDistance.text = FormatUtils.formatKm(summary.totalScreenshotDistance)
                 tvTotalTrips.text = "${summary.totalTrips}"
 
-                // Show actual rate only after day ended
                 if (summary.isSessionEnded && summary.actualDistance > 0) {
                     rowActualRate.visibility = View.VISIBLE
                     rowDeadKm.visibility = View.VISIBLE
@@ -131,7 +135,6 @@ class TodayFragment : Fragment() {
     }
 
     private fun setupListeners() {
-        // Live ₹/km preview while typing
         val updatePreview = {
             val pay = binding.etOrderPay.text.toString().toDoubleOrNull() ?: 0.0
             val dist = binding.etDistance.text.toString().toDoubleOrNull() ?: 0.0
@@ -189,7 +192,7 @@ class TodayFragment : Fragment() {
 
             viewModel.addTrip(
                 Trip(
-                    sessionId = 0L, // ViewModel fills this
+                    sessionId = 0L,
                     restaurantName = restaurant,
                     assignedTime = time,
                     orderPay = orderPay,
@@ -212,10 +215,8 @@ class TodayFragment : Fragment() {
                 val stream: InputStream? = requireContext().contentResolver.openInputStream(uri)
                 val bitmap: Bitmap = BitmapFactory.decodeStream(stream)
 
-                // Try Gemini first, fallback to ML Kit regex
                 var result = ZomatoOcrParser.parseWithGemini(bitmap)
 
-                // Fallback: if Gemini returns empty, use ML Kit + regex
                 if (result.restaurantName.isEmpty() && result.orderPay == 0.0) {
                     val image = InputImage.fromBitmap(bitmap, 0)
                     val visionText = Tasks.await(recognizer.process(image))
@@ -224,29 +225,19 @@ class TodayFragment : Fragment() {
 
                 withContext(Dispatchers.Main) {
                     binding.apply {
-                        if (result.restaurantName.isNotEmpty())
-                            etRestaurant.setText(result.restaurantName)
-                        if (result.assignedTime.isNotEmpty())
-                            etAssignedTime.setText(result.assignedTime)
-                        if (result.orderPay > 0)
-                            etOrderPay.setText(result.orderPay.toString())
-                        if (result.distance > 0)
-                            etDistance.setText(result.distance.toString())
-                        if (result.tips > 0)
-                            etTips.setText(result.tips.toString())
-                        if (result.surgePay > 0)
-                            etSurge.setText(result.surgePay.toString())
-                        if (result.incentivePay > 0)
-                            etIncentive.setText(result.incentivePay.toString())
+                        if (result.restaurantName.isNotEmpty()) etRestaurant.setText(result.restaurantName)
+                        if (result.assignedTime.isNotEmpty()) etAssignedTime.setText(result.assignedTime)
+                        if (result.orderPay > 0) etOrderPay.setText(result.orderPay.toString())
+                        if (result.distance > 0) etDistance.setText(result.distance.toString())
+                        if (result.tips > 0) etTips.setText(result.tips.toString())
+                        if (result.surgePay > 0) etSurge.setText(result.surgePay.toString())
+                        if (result.incentivePay > 0) etIncentive.setText(result.incentivePay.toString())
                     }
-                    Toast.makeText(requireContext(),
-                        "AI scanned ✅ Check and edit if needed",
-                        Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), "AI scanned ✅ Check and edit if needed", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(requireContext(),
-                        "Scan failed. Fill manually.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), "Scan failed. Fill manually.", Toast.LENGTH_SHORT).show()
                 }
             }
         }
