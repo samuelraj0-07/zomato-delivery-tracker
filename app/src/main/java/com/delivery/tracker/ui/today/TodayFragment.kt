@@ -270,3 +270,4 @@ class TodayFragment : Fragment() {
         _binding = null
     }
 }
+}
