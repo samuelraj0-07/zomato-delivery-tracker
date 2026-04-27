@@ -52,4 +52,10 @@ dependencies {
     kapt 'androidx.room:room-compiler:2.6.1'
     implementation 'com.google.dagger:hilt-android:2.48'
     kapt 'com.google.dagger:hilt-android-compiler:2.48'
+
+    // MPAndroidChart - used in AnalyticsFragment
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
+
+    // ML Kit Text Recognition - used in TodayFragment
+    implementation 'com.google.mlkit:text-recognition:16.0.0'
 }
