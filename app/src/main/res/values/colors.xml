@@ -5,4 +5,13 @@
     <color name="colorPrimary">#E53935</color>
     <color name="colorPrimaryDark">#B71C1C</color>
     <color name="colorAccent">#FF5722</color>
+    <color name="primary">#E53935</color>
+    <color name="primary_dark">#B71C1C</color>
+    <color name="background">#121212</color>
+    <color name="surface">#1E1E1E</color>
+    <color name="text_primary">#FFFFFF</color>
+    <color name="text_secondary">#B0B0B0</color>
+    <color name="success">#4CAF50</color>
+    <color name="warning">#FF9800</color>
+    <color name="error">#F44336</color>
 </resources>
