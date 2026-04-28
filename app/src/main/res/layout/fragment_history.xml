@@ -192,10 +192,30 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
-            <!-- Trips List -->
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:text="TRIPS" android:textColor="@color/text_secondary"
-                android:textSize="12sp" android:letterSpacing="0.1"/>
+            <!-- Trips List Header + Add button -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="8dp">
+
+                <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="TRIPS" android:textColor="@color/text_secondary"
+                    android:textSize="12sp" android:letterSpacing="0.1"/>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btn_add_trip_history"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:text="➕ Add Trip"
+                    android:textSize="12sp"
+                    android:visibility="gone"
+                    app:backgroundTint="@color/primary"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+
+            </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/rv_history_trips"
