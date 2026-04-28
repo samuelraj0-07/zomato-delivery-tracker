@@ -30,6 +30,10 @@ class TodayViewModel @Inject constructor(
     private val subOrderDao: SubOrderDao
 ) : ViewModel() {
 
+    /** The date the user has chosen for this session (defaults to today). */
+    private val _selectedDateMillis = MutableLiveData(System.currentTimeMillis())
+    val selectedDateMillis: LiveData<Long> = _selectedDateMillis
+
     private val _activeSession = sessionRepo.getActiveSession()
     val activeSession: LiveData<DailySession?> = _activeSession
 
@@ -47,7 +51,18 @@ class TodayViewModel @Inject constructor(
 
     init {
         _activeSession.observeForever { session ->
-            session?.let { loadTodayTrips(it.id) }
+            if (session != null) {
+                // Sync the displayed date to the session's actual date
+                _selectedDateMillis.value = session.dateMillis
+                loadTodayTrips(session.id)
+            }
+        }
+    }
+
+    fun setSelectedDate(dateMillis: Long) {
+        // Only allow changing the date when no active session exists
+        if (_activeSession.value == null) {
+            _selectedDateMillis.value = dateMillis
         }
     }
 
@@ -60,10 +75,10 @@ class TodayViewModel @Inject constructor(
 
     private fun recalculateSummary(trips: List<Trip>) {
         val session = _activeSession.value
-        val totalOrderPay    = trips.sumOf { it.orderPay }
-        val totalExtras      = trips.sumOf { it.totalExtras }   // sums all extraPays values
-        val totalScreenDist  = trips.sumOf { it.screenshotDistance }
-        val actualDist       = session?.actualDistance ?: 0.0
+        val totalOrderPay   = trips.sumOf { it.orderPay }
+        val totalExtras     = trips.sumOf { it.totalExtras }
+        val totalScreenDist = trips.sumOf { it.screenshotDistance }
+        val actualDist      = session?.actualDistance ?: 0.0
 
         _todaySummary.value = TodaySummary(
             totalTrips              = trips.size,
@@ -78,16 +93,20 @@ class TodayViewModel @Inject constructor(
         )
     }
 
-    fun startDay(startOdometer: Double) {
+    /**
+     * Start a day session for the given [dateMillis] (defaults to selectedDateMillis).
+     * This allows feeding in past data by picking an earlier date before starting.
+     */
+    fun startDay(startOdometer: Double, dateMillis: Long = _selectedDateMillis.value ?: System.currentTimeMillis()) {
         viewModelScope.launch {
             val existing = sessionRepo.getActiveSessionOnce()
             if (existing != null) { _sessionStarted.value = true; return@launch }
             val cycle = cycleRepo.getActiveCycleOnce()
             sessionRepo.startSession(
                 DailySession(
-                    dateMillis      = DateUtils.startOfDay(),
-                    startOdometer   = startOdometer,
-                    serviceCycleId  = cycle?.id ?: 0L
+                    dateMillis     = DateUtils.startOfDay(dateMillis),
+                    startOdometer  = startOdometer,
+                    serviceCycleId = cycle?.id ?: 0L
                 )
             )
             _sessionStarted.value = true
@@ -126,7 +145,7 @@ class TodayViewModel @Inject constructor(
                     assignedTime       = ocrResult.assignedTime,
                     orderPay           = ocrResult.orderPay,
                     screenshotDistance = ocrResult.distance,
-                    extraPays          = ocrResult.extraPays,   // ← pass the whole map
+                    extraPays          = ocrResult.extraPays,
                     dateMillis         = System.currentTimeMillis(),
                     servicecycleId     = session.serviceCycleId
                 )
@@ -146,6 +165,27 @@ class TodayViewModel @Inject constructor(
                             orderDeliveredTime = s.orderDeliveredTime
                         )
                     }
+                )
+            }
+        }
+    }
+
+    /** Add multiple trips from a parsed JSON list (one per element). */
+    fun addTripsFromOcrList(results: List<OcrResult>) {
+        viewModelScope.launch {
+            val session = sessionRepo.getActiveSessionOnce() ?: return@launch
+            results.forEach { ocrResult ->
+                tripRepo.addTrip(
+                    Trip(
+                        sessionId          = session.id,
+                        restaurantName     = ocrResult.restaurantName,
+                        assignedTime       = ocrResult.assignedTime,
+                        orderPay           = ocrResult.orderPay,
+                        screenshotDistance = ocrResult.distance,
+                        extraPays          = ocrResult.extraPays,
+                        dateMillis         = System.currentTimeMillis(),
+                        servicecycleId     = session.serviceCycleId
+                    )
                 )
             }
         }
