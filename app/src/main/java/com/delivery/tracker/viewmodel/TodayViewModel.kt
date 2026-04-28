@@ -60,21 +60,21 @@ class TodayViewModel @Inject constructor(
 
     private fun recalculateSummary(trips: List<Trip>) {
         val session = _activeSession.value
-        val totalOrderPay = trips.sumOf { it.orderPay }
-        val totalExtras = trips.sumOf { it.totalExtras }
-        val totalScreenshotDist = trips.sumOf { it.screenshotDistance }
-        val actualDist = session?.actualDistance ?: 0.0
+        val totalOrderPay    = trips.sumOf { it.orderPay }
+        val totalExtras      = trips.sumOf { it.totalExtras }   // sums all extraPays values
+        val totalScreenDist  = trips.sumOf { it.screenshotDistance }
+        val actualDist       = session?.actualDistance ?: 0.0
 
         _todaySummary.value = TodaySummary(
-            totalTrips = trips.size,
-            totalOrderPay = totalOrderPay,
-            totalExtras = totalExtras,
-            totalScreenshotDistance = totalScreenshotDist,
-            actualDistance = actualDist,
-            ratePerKmLive = if (totalScreenshotDist > 0) totalOrderPay / totalScreenshotDist else 0.0,
-            ratePerKmActual = if (actualDist > 0) totalOrderPay / actualDist else 0.0,
-            deadKm = (actualDist - totalScreenshotDist).coerceAtLeast(0.0),
-            isSessionEnded = session?.isEnded ?: false
+            totalTrips              = trips.size,
+            totalOrderPay           = totalOrderPay,
+            totalExtras             = totalExtras,
+            totalScreenshotDistance = totalScreenDist,
+            actualDistance          = actualDist,
+            ratePerKmLive           = if (totalScreenDist > 0) totalOrderPay / totalScreenDist else 0.0,
+            ratePerKmActual         = if (actualDist > 0) totalOrderPay / actualDist else 0.0,
+            deadKm                  = (actualDist - totalScreenDist).coerceAtLeast(0.0),
+            isSessionEnded          = session?.isEnded ?: false
         )
     }
 
@@ -85,9 +85,9 @@ class TodayViewModel @Inject constructor(
             val cycle = cycleRepo.getActiveCycleOnce()
             sessionRepo.startSession(
                 DailySession(
-                    dateMillis = DateUtils.startOfDay(),
-                    startOdometer = startOdometer,
-                    serviceCycleId = cycle?.id ?: 0L
+                    dateMillis      = DateUtils.startOfDay(),
+                    startOdometer   = startOdometer,
+                    serviceCycleId  = cycle?.id ?: 0L
                 )
             )
             _sessionStarted.value = true
@@ -108,8 +108,8 @@ class TodayViewModel @Inject constructor(
             val session = sessionRepo.getActiveSessionOnce() ?: return@launch
             tripRepo.addTrip(
                 trip.copy(
-                    sessionId = session.id,
-                    dateMillis = System.currentTimeMillis(),
+                    sessionId      = session.id,
+                    dateMillis     = System.currentTimeMillis(),
                     servicecycleId = session.serviceCycleId
                 )
             )
@@ -126,9 +126,7 @@ class TodayViewModel @Inject constructor(
                     assignedTime       = ocrResult.assignedTime,
                     orderPay           = ocrResult.orderPay,
                     screenshotDistance = ocrResult.distance,
-                    incentivePay       = ocrResult.incentivePay,
-                    tips               = ocrResult.tips,
-                    surgePay           = ocrResult.surgePay,
+                    extraPays          = ocrResult.extraPays,   // ← pass the whole map
                     dateMillis         = System.currentTimeMillis(),
                     servicecycleId     = session.serviceCycleId
                 )

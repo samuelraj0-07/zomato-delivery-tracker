@@ -18,14 +18,16 @@ data class OcrResult(
     val assignedTime: String = "",
     val orderPay: Double = 0.0,
     val distance: Double = 0.0,
-    val incentivePay: Double = 0.0,
-    val tips: Double = 0.0,
-    val surgePay: Double = 0.0,
-    val otherPay: Double = 0.0,
+    // All extra pay types stored by their exact key name.
+    // e.g. {"incentive_pay": 5.0, "rain_bonus": 15.0, "festival_pay": 20.0}
+    val extraPays: Map<String, Double> = emptyMap(),
     val screenType: ScreenType = ScreenType.UNKNOWN,
     val subOrders: List<SubOrderResult> = emptyList(),
     val isMultiOrder: Boolean = false
-)
+) {
+    val totalExtras: Double get() = extraPays.values.sum()
+    val totalEarnings: Double get() = orderPay + totalExtras
+}
 
 enum class ScreenType {
     TRIP_START,
