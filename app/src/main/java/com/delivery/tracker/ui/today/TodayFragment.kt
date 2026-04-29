@@ -2,16 +2,19 @@ package com.delivery.tracker.ui.today
 
 import android.app.AlertDialog
 import android.app.DatePickerDialog
+import android.content.res.ColorStateList
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.widget.addTextChangedListener
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.delivery.tracker.R
 import com.delivery.tracker.data.model.Trip
 import com.delivery.tracker.databinding.FragmentTodayBinding
 import com.delivery.tracker.ocr.JsonTripParser
@@ -20,6 +23,11 @@ import com.delivery.tracker.utils.FormatUtils
 import com.delivery.tracker.viewmodel.TodayViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import java.util.Calendar
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
+import android.widget.ImageButton
+import android.widget.LinearLayout
+import android.widget.Spinner
 
 @AndroidEntryPoint
 class TodayFragment : Fragment() {
@@ -77,11 +85,13 @@ class TodayFragment : Fragment() {
                 tvTotalDistance.text  = FormatUtils.formatKm(summary.totalScreenshotDistance)
                 tvTotalTrips.text     = "${summary.totalTrips}"
 
-                if (summary.isSessionEnded && summary.actualDistance > 0) {
+                if (summary.isSessionEnded) {
                     rowActualRate.visibility = View.VISIBLE
                     rowDeadKm.visibility     = View.VISIBLE
-                    tvRateActual.text = FormatUtils.formatRate(summary.ratePerKmActual)
-                    tvDeadKm.text     = FormatUtils.formatKm(summary.deadKm)
+                    tvRateActual.text = if (summary.ratePerKmActual > 0)
+                        FormatUtils.formatRate(summary.ratePerKmActual)
+                    else "—"
+                    tvDeadKm.text = FormatUtils.formatKm(summary.deadKm)
                     btnEndDay.isEnabled   = false
                     btnStartDay.isEnabled = false
                 } else {
@@ -96,16 +106,29 @@ class TodayFragment : Fragment() {
                 if (session != null) {
                     etStartOdometer.setText(session.startOdometer.toString())
                     etStartOdometer.isEnabled = false
-                    btnStartDay.isEnabled     = false
-                    btnEndDay.isEnabled       = !session.isEnded
-                    // Date is locked once session starts — remove tap hint
                     tvDate.setCompoundDrawablesWithIntrinsicBounds(0, 0, 0, 0)
                     tvDate.isClickable = false
+
+                    if (session.isEnded) {
+                        // Day ended — both buttons grey, fully disabled
+                        setButtonTint(btnStartDay, R.color.surface_variant)
+                        setButtonTint(btnEndDay,   R.color.surface_variant)
+                        btnStartDay.isEnabled = false
+                        btnEndDay.isEnabled   = false
+                    } else {
+                        // Day running — Start blue (locked/done), End red (action needed)
+                        setButtonTint(btnStartDay, R.color.btn_locked)
+                        setButtonTint(btnEndDay,   R.color.primary)
+                        btnStartDay.isEnabled = false
+                        btnEndDay.isEnabled   = true
+                    }
                 } else {
+                    // No session — Start ready, End disabled grey
                     etStartOdometer.isEnabled = true
-                    btnStartDay.isEnabled     = true
-                    btnEndDay.isEnabled       = false
-                    // Show edit pencil hint when no session yet
+                    setButtonTint(btnStartDay, R.color.primary)
+                    setButtonTint(btnEndDay,   R.color.surface_variant)
+                    btnStartDay.isEnabled = true
+                    btnEndDay.isEnabled   = false
                     tvDate.setCompoundDrawablesRelativeWithIntrinsicBounds(
                         0, 0, android.R.drawable.ic_menu_edit, 0
                     )
@@ -120,6 +143,14 @@ class TodayFragment : Fragment() {
 
         viewModel.sessionEnded.observe(viewLifecycleOwner) {
             Toast.makeText(requireContext(), "Day ended! Actual ₹/km updated ✅", Toast.LENGTH_SHORT).show()
+        }
+
+        viewModel.odometerError.observe(viewLifecycleOwner) { message ->
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("⚠️ Odometer Error")
+                .setMessage(message)
+                .setPositiveButton("OK", null)
+                .show()
         }
     }
 
@@ -183,15 +214,21 @@ class TodayFragment : Fragment() {
             showJsonInputDialog()
         }
 
+        // ADD this inside setupListeners(), after the btnScan click listener:
+        binding.btnAddExtraPay.setOnClickListener {
+            addExtraPayRow()
+        }
+
         // ── Manual trip add ────────────────────────────────────────────────
         binding.btnAddTrip.setOnClickListener {
             val restaurant = binding.etRestaurant.text.toString().trim()
             val time       = binding.etAssignedTime.text.toString().trim()
             val orderPay   = binding.etOrderPay.text.toString().toDoubleOrNull() ?: 0.0
             val distance   = binding.etDistance.text.toString().toDoubleOrNull() ?: 0.0
-            val tips       = binding.etTips.text.toString().toDoubleOrNull() ?: 0.0
-            val surge      = binding.etSurge.text.toString().toDoubleOrNull() ?: 0.0
-            val incentive  = binding.etIncentive.text.toString().toDoubleOrNull() ?: 0.0
+
+            // REMOVED: tips, surge, incentive hardcoded reads
+            // ADDED: collect from dynamic rows instead
+            val extraPays = collectExtraPays()
 
             if (restaurant.isEmpty()) {
                 Toast.makeText(requireContext(), "Enter restaurant name", Toast.LENGTH_SHORT).show()
@@ -204,12 +241,6 @@ class TodayFragment : Fragment() {
             if (distance <= 0) {
                 Toast.makeText(requireContext(), "Enter distance", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
-            }
-
-            val extraPays = buildMap<String, Double> {
-                if (tips > 0)      put("customer_tip",  tips)
-                if (surge > 0)     put("surge_pay",     surge)
-                if (incentive > 0) put("incentive_pay", incentive)
             }
 
             viewModel.addTrip(
@@ -285,11 +316,88 @@ class TodayFragment : Fragment() {
             etAssignedTime.text?.clear()
             etOrderPay.text?.clear()
             etDistance.text?.clear()
-            etTips.text?.clear()
-            etSurge.text?.clear()
-            etIncentive.text?.clear()
+            containerExtraPays.removeAllViews()   
             tvRatePreview.text = "₹/km: —"
         }
+    }
+
+    private fun setButtonTint(button: com.google.android.material.button.MaterialButton, colorRes: Int) {
+        button.backgroundTintList = ColorStateList.valueOf(
+            ContextCompat.getColor(requireContext(), colorRes)
+        )
+    }
+
+    // ADD this new function:
+    private fun addExtraPayRow(keyHint: String = "", amountHint: String = "") {
+        val ctx = requireContext()
+        val row = LinearLayout(ctx).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = 4 }
+        }
+
+        // Key name spinner with common suggestions
+        val keyOptions = arrayOf(
+            "customer_tip", "surge_pay", "incentive_pay",
+            "rain_bonus", "long_distance_pay", "peak_pay", "other"
+        )
+        val spinnerAdapter = ArrayAdapter(ctx, android.R.layout.simple_spinner_item, keyOptions).apply {
+            setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        }
+        val spinner = Spinner(ctx).apply {
+            adapter = spinnerAdapter
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.5f)
+            if (keyHint.isNotEmpty()) {
+                val idx = keyOptions.indexOf(keyHint)
+                if (idx >= 0) setSelection(idx)
+            }
+        }
+
+        // Amount field
+        val etAmount = android.widget.EditText(ctx).apply {
+            hint = "₹"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            textSize = 14f
+            if (amountHint.isNotEmpty()) setText(amountHint)
+            layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+            setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_primary))
+            setHintTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
+        }
+
+        // Remove button
+        val btnRemove = android.widget.Button(ctx).apply {
+            text = "✕"
+            textSize = 12f
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            setOnClickListener { binding.containerExtraPays.removeView(row) }
+            background = null
+            setTextColor(ctx.getColor(com.delivery.tracker.R.color.negative))
+        }
+
+        row.addView(spinner)
+        row.addView(etAmount)
+        row.addView(btnRemove)
+        binding.containerExtraPays.addView(row)
+    }
+
+    private fun collectExtraPays(): Map<String, Double> {
+        val result = mutableMapOf<String, Double>()
+        val container = binding.containerExtraPays
+        for (i in 0 until container.childCount) {
+            val row = container.getChildAt(i) as? LinearLayout ?: continue
+            val spinner  = row.getChildAt(0) as? Spinner ?: continue
+            val etAmount = row.getChildAt(1) as? android.widget.EditText ?: continue
+            val key    = spinner.selectedItem?.toString() ?: continue
+            val amount = etAmount.text.toString().toDoubleOrNull() ?: continue
+            if (amount > 0) result[key] = amount
+        }
+        return result
     }
 
     override fun onDestroyView() {

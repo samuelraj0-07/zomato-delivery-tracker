@@ -19,4 +19,5 @@
     <color name="success">#4CAF50</color>
     <color name="warning">#FF9800</color>
     <color name="error">#F44336</color>
+    <color name="btn_locked">#1565C0</color>
 </resources>

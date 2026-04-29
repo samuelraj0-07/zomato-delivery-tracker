@@ -15,7 +15,7 @@ data class DailySession(
 ) {
     // Actual distance from odometer
     val actualDistance: Double
-        get() = if (isEnded && endOdometer > startOdometer)
+        get() = if (endOdometer > startOdometer)
             endOdometer - startOdometer else 0.0
 
     // Day is still running

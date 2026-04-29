@@ -28,4 +28,6 @@ class SessionRepository @Inject constructor(
 
     suspend fun updateSession(session: DailySession) =
         sessionDao.update(session)
+
+    suspend fun getMaxEndOdometer(): Double? = sessionDao.getMaxEndOdometer()
 }

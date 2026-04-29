@@ -101,17 +101,15 @@
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Start Day"
-                            app:backgroundTint="@color/primary"/>
+                            android:text="Start Day"/>
+                            
 
                         <com.google.android.material.button.MaterialButton
                             android:id="@+id/btn_end_day"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="End Day"
-                            app:backgroundTint="@color/surface_variant"
-                            android:enabled="false"/>
+                            android:text="End Day"/>
 
                     </LinearLayout>
 
@@ -233,62 +231,39 @@
 
                     </LinearLayout>
 
-                    <!-- Extras Row -->
+                    <!-- Extra Pays Header -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        >
+                        android:gravity="center_vertical"
+                        android:layout_marginTop="4dp">
 
-                        <com.google.android.material.textfield.TextInputLayout
+                        <TextView
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            app:boxBackgroundColor="@color/surface_variant"
-                            app:boxStrokeColor="@color/primary"
-                           >
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_tips" android:hint="Tips ₹"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="numberDecimal"
-                                android:textColor="@color/text_primary"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                            android:text="Extra Pays"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="12sp"/>
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            app:boxBackgroundColor="@color/surface_variant"
-                            app:boxStrokeColor="@color/primary"
-                           >
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_surge" android:hint="Surge ₹"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="numberDecimal"
-                                android:textColor="@color/text_primary"/>
-                        </com.google.android.material.textfield.TextInputLayout>
-
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            app:boxBackgroundColor="@color/surface_variant"
-                            app:boxStrokeColor="@color/primary"
-                           >
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_incentive" android:hint="Incentive ₹"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="numberDecimal"
-                                android:textColor="@color/text_primary"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_add_extra_pay"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:text="+ Add"
+                            android:textSize="12sp"
+                            app:backgroundTint="@color/surface_variant"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
 
                     </LinearLayout>
+
+                    <!-- Dynamic container — rows added here by code -->
+                    <LinearLayout
+                    android:id="@+id/container_extra_pays"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"/>
 
                     <!-- ₹/km live preview -->
                     <TextView

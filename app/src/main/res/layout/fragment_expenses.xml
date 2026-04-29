@@ -175,16 +175,21 @@
                             android:textColor="@color/text_primary" android:textSize="15sp"
                             android:textStyle="bold"/>
 
-                        <com.google.android.material.textfield.TextInputLayout
-                            android:layout_width="match_parent" android:layout_height="wrap_content"
-                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                            app:boxBackgroundColor="@color/surface_variant"
-                            app:boxStrokeColor="@color/primary">
-                            <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_tds_week" android:hint="Week Label (e.g. Week 1 - Apr)" android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:textColor="@color/text_primary"/>
-                        </com.google.android.material.textfield.TextInputLayout>
+                        <TextView
+                            android:id="@+id/et_tds_week"
+                            android:layout_width="match_parent"
+                            android:layout_height="48dp"
+                            android:gravity="center_vertical"
+                            android:paddingStart="16dp"
+                            android:paddingEnd="16dp"
+                            android:text="Tap to select week ▾"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="14sp"
+                            android:background="@drawable/bg_outlined_box"
+                            android:layout_marginTop="4dp"
+                            android:layout_marginBottom="4dp"
+                            android:clickable="true"
+                            android:focusable="true"/>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:layout_width="match_parent" android:layout_height="wrap_content"

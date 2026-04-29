@@ -6,9 +6,7 @@ import com.delivery.tracker.data.model.*
 import com.delivery.tracker.data.repository.*
 import com.delivery.tracker.ocr.OcrResult
 import com.delivery.tracker.utils.DateUtils
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.launch
-import javax.inject.Inject
+import com.delivery.tracker.utils.SingleLiveEvent
 
 data class TodaySummary(
     val totalTrips: Int = 0,
@@ -43,11 +41,14 @@ class TodayViewModel @Inject constructor(
     private val _todaySummary = MutableLiveData<TodaySummary>()
     val todaySummary: LiveData<TodaySummary> = _todaySummary
 
-    private val _sessionStarted = MutableLiveData<Boolean>()
+    private val _sessionStarted = SingleLiveEvent<Boolean>()
     val sessionStarted: LiveData<Boolean> = _sessionStarted
 
-    private val _sessionEnded = MutableLiveData<Boolean>()
+    private val _sessionEnded = SingleLiveEvent<Boolean>()
     val sessionEnded: LiveData<Boolean> = _sessionEnded
+
+    private val _odometerError = MutableLiveData<String>()
+    val odometerError: LiveData<String> = _odometerError
 
     init {
         _activeSession.observeForever { session ->
@@ -93,6 +94,32 @@ class TodayViewModel @Inject constructor(
         )
     }
 
+    // Keep the existing recalculateSummary() exactly as is, then ADD this below it:
+
+    // New overload that accepts an explicit session (used by endDay so we
+    // don't depend on LiveData catching up after the DB write)
+    private fun recalculateSummaryWithSession(session: DailySession, trips: List<Trip>) {
+        val totalOrderPay   = trips.sumOf { it.orderPay }
+        val totalExtras     = trips.sumOf { it.totalExtras }
+        val totalScreenDist = trips.sumOf { it.screenshotDistance }
+        val actualDist      = session.actualDistance
+
+        _todaySummary.value = TodaySummary(
+            totalTrips              = trips.size,
+            totalOrderPay           = totalOrderPay,
+            totalExtras             = totalExtras,
+            totalScreenshotDistance = totalScreenDist,
+            actualDistance          = actualDist,
+            ratePerKmLive           = if (totalScreenDist > 0) totalOrderPay / totalScreenDist else 0.0,
+            ratePerKmActual         = if (actualDist > 0) totalOrderPay / actualDist else 0.0,
+            deadKm                  = (actualDist - totalScreenDist).coerceAtLeast(0.0),
+            isSessionEnded          = session.isEnded
+        )
+    }
+
+
+
+
     /**
      * Start a day session for the given [dateMillis] (defaults to selectedDateMillis).
      * This allows feeding in past data by picking an earlier date before starting.
@@ -101,6 +128,16 @@ class TodayViewModel @Inject constructor(
         viewModelScope.launch {
             val existing = sessionRepo.getActiveSessionOnce()
             if (existing != null) { _sessionStarted.value = true; return@launch }
+
+            // Validate: startOdometer must be >= the highest endOdometer ever recorded
+            val maxPrevOdometer = sessionRepo.getMaxEndOdometer() ?: 0.0
+            if (maxPrevOdometer > 0 && startOdometer < maxPrevOdometer) {
+                _odometerError.value =
+                    "Start odometer (%.1f km) is less than last recorded reading (%.1f km)."
+                        .format(startOdometer, maxPrevOdometer)
+                return@launch
+            }
+
             val cycle = cycleRepo.getActiveCycleOnce()
             sessionRepo.startSession(
                 DailySession(
@@ -116,6 +153,15 @@ class TodayViewModel @Inject constructor(
     fun endDay(endOdometer: Double) {
         viewModelScope.launch {
             val session = sessionRepo.getActiveSessionOnce() ?: return@launch
+
+            // Validate: endOdometer must be greater than startOdometer
+            if (endOdometer <= session.startOdometer) {
+                _odometerError.value =
+                    "End odometer (%.1f km) must be greater than start odometer (%.1f km)."
+                        .format(endOdometer, session.startOdometer)
+                return@launch
+            }
+
             sessionRepo.updateSession(session.copy(endOdometer = endOdometer, isEnded = true))
             recalculateSummary(_todayTrips.value ?: emptyList())
             _sessionEnded.value = true
