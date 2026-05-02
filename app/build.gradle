@@ -37,14 +37,8 @@ android {
         viewBinding true
     }
 
-    
-
     kapt {
         correctErrorTypes = true
-        arguments {
-            arg("room.schemaLocation", "$projectDir/schemas")
-            arg("room.incremental", "true")
-        }
     }
 }
 
@@ -53,21 +47,23 @@ dependencies {
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+
     implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.7.0'
     implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.7.0'
+
     implementation 'androidx.navigation:navigation-fragment-ktx:2.7.6'
     implementation 'androidx.navigation:navigation-ui-ktx:2.7.6'
 
-    // Room — aligned versions
+    // Room
     implementation 'androidx.room:room-runtime:2.6.1'
     implementation 'androidx.room:room-ktx:2.6.1'
     kapt 'androidx.room:room-compiler:2.6.1'
 
-    // Hilt — aligned versions
+    // Hilt (ONLY these two — correct)
     implementation 'com.google.dagger:hilt-android:2.50'
     kapt 'com.google.dagger:hilt-android-compiler:2.50'
 
-    // MPAndroidChart
+    // Chart
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
 
     // ML Kit
