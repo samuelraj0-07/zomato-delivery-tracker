@@ -53,6 +53,6 @@ interface ExpenseDao {
     @Query("SELECT * FROM tds_entries ORDER BY weekStartMillis DESC")
     fun getAllTds(): LiveData<List<TdsEntry>>
 
-    @Query("SELECT SUM(amount) FROM tds_entries WHERE dateMillis BETWEEN :start AND :end")
+    @Query("SELECT SUM(amount) FROM tds_entries WHERE weekStartMillis >= :start AND weekEndMillis <= :end")
     suspend fun getTotalTds(start: Long, end: Long): Double?
 }
