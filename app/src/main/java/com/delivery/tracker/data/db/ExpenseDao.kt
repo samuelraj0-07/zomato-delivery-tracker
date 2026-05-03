@@ -21,7 +21,7 @@ interface ExpenseDao {
     @Query("SELECT * FROM fuel_entries WHERE serviceCycleId = :cycleId ORDER BY dateMillis ASC")
     fun getFuelByCycle(cycleId: Long): LiveData<List<FuelEntry>>
 
-    @Query("SELECT SUM(amountSpent) FROM fuel_entries WHERE weekStartMillis BETWEEN :start AND :end")
+    @Query("SELECT SUM(amountSpent) FROM fuel_entries WHERE dateMillis BETWEEN :start AND :end")
     suspend fun getTotalFuel(start: Long, end: Long): Double?
 
     @Query("SELECT SUM(amountSpent) FROM fuel_entries WHERE serviceCycleId = :cycleId")
