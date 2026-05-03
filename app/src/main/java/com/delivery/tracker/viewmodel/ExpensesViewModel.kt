@@ -126,6 +126,12 @@ class ExpensesViewModel @Inject constructor(
         }
     }
 
+    fun deleteTdsEntry(entry: TdsEntry) {
+        viewModelScope.launch {
+            expenseRepo.deleteTdsEntry(entry)
+        }
+    }
+
     fun startNewCycle(startOdometer: Double, fuelBudget: Double, serviceBudget: Double) {
         viewModelScope.launch {
             // Close existing active cycle
