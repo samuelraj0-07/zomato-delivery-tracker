@@ -2,10 +2,13 @@ package com.delivery.tracker.ui.expenses
 
 import android.os.Bundle
 import android.view.*
+import android.widget.LinearLayout
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import com.delivery.tracker.data.model.TdsEntry
 import com.delivery.tracker.databinding.FragmentExpensesBinding
 import com.delivery.tracker.utils.DateUtils
 import com.delivery.tracker.utils.FormatUtils
@@ -112,6 +115,87 @@ class ExpensesFragment : Fragment() {
             Toast.makeText(requireContext(), "TDS entry saved ✅", Toast.LENGTH_SHORT).show()
             clearTdsForm()
         }
+
+        viewModel.allTds.observe(viewLifecycleOwner) { entries ->
+            renderTdsList(entries)
+        }
+    }
+    
+    private fun renderTdsList(entries: List<TdsEntry>) {
+        val container = binding.llTdsEntries
+        val emptyView = binding.tvTdsEmpty
+        val totalView = binding.tvTdsTotal
+
+        container.removeAllViews()
+
+        if (entries.isEmpty()) {
+            emptyView.visibility = View.VISIBLE
+            totalView.text = "Total: ₹0"
+            return
+        }
+
+        emptyView.visibility = View.GONE
+        val ctx = requireContext()
+        var total = 0.0
+
+        entries.forEach { entry ->
+            total += entry.amount
+
+            val divider = View(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+                setBackgroundColor(ctx.getColor(com.delivery.tracker.R.color.divider))
+            }
+
+            val row = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, 10, 0, 10)
+            }
+
+            val weekTv = TextView(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                text = entry.weekLabel
+                textSize = 13f
+                setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
+            }
+
+            val amtTv = TextView(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                ).also { it.marginEnd = 16 }
+                text = "₹${String.format("%.0f", entry.amount)}"
+                textSize = 13f
+                setTextColor(ctx.getColor(com.delivery.tracker.R.color.negative))
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            }
+
+            val deleteTv = TextView(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT,
+                    LinearLayout.LayoutParams.WRAP_CONTENT
+                )
+                text = "🗑"
+                textSize = 14f
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    AlertDialog.Builder(ctx)
+                        .setTitle("Delete TDS Entry")
+                        .setMessage("Remove ₹${String.format("%.0f", entry.amount)} for ${entry.weekLabel}?")
+                        .setPositiveButton("Delete") { _, _ -> viewModel.deleteTdsEntry(entry) }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            }
+
+            row.addView(weekTv)
+            row.addView(amtTv)
+            row.addView(deleteTv)
+            container.addView(divider)
+            container.addView(row)
+        }
+
+        totalView.text = "Total: ₹${String.format("%.0f", total)}"
     }
 
     private fun setupListeners() {
