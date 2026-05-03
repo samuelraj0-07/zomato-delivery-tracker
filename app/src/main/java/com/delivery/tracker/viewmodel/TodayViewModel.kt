@@ -180,7 +180,7 @@ class TodayViewModel @Inject constructor(
             tripRepo.addTrip(
                 trip.copy(
                     sessionId      = session.id,
-                    dateMillis     = System.currentTimeMillis(),
+                    dateMillis     = session.dateMillis,
                     servicecycleId = session.serviceCycleId
                 )
             )
@@ -198,7 +198,7 @@ class TodayViewModel @Inject constructor(
                     orderPay           = ocrResult.orderPay,
                     screenshotDistance = ocrResult.distance,
                     extraPays          = ocrResult.extraPays,
-                    dateMillis         = System.currentTimeMillis(),
+                    dateMillis         = session.dateMillis,
                     servicecycleId     = session.serviceCycleId
                 )
             )
@@ -235,7 +235,7 @@ class TodayViewModel @Inject constructor(
                         orderPay           = ocrResult.orderPay,
                         screenshotDistance = ocrResult.distance,
                         extraPays          = ocrResult.extraPays,
-                        dateMillis         = System.currentTimeMillis(),
+                        dateMillis         = session.dateMillis,
                         servicecycleId     = session.serviceCycleId
                     )
                 )
