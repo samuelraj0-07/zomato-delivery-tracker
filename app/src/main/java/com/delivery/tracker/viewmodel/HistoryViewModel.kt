@@ -102,7 +102,7 @@ class HistoryViewModel @Inject constructor(
             val totalScreenDist = trips.sumOf { it.screenshotDistance }
 
             val fuelSpent = expenseRepo.getTotalFuel(start, end)
-            val tdsSpent  = expenseRepo.getTotalTds(start, end)
+            val tdsSpent  = if (mode == HistoryViewMode.DAY) 0.0 else expenseRepo.getTotalTds(start, end)
             val netRemaining = totalOrderPay + totalExtras - fuelSpent - tdsSpent
 
             _summary.value = HistorySummary(
