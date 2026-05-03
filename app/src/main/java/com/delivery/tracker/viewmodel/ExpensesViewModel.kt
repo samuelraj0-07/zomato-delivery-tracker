@@ -75,7 +75,7 @@ class ExpensesViewModel @Inject constructor(
             val cycle = cycleRepo.getActiveCycleOnce()
             expenseRepo.addFuelEntry(
                 FuelEntry(
-                    dateMillis = weekStart,
+                    dateMillis = System.currentTimeMillis(),
                     odometerReading = odometer,
                     fuelPricePerLitre = pricePerLitre,
                     amountSpent = amountSpent,
