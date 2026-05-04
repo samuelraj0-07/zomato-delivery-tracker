@@ -18,6 +18,9 @@ interface SessionDao {
     @Query("SELECT * FROM daily_sessions WHERE dateMillis BETWEEN :startMillis AND :endMillis LIMIT 1")
     suspend fun getSessionForDate(startMillis: Long, endMillis: Long): DailySession?
 
+    @Query("SELECT * FROM daily_sessions WHERE dateMillis BETWEEN :startMillis AND :endMillis")
+    suspend fun getSessionsForRangeOnce(startMillis: Long, endMillis: Long): List<DailySession>
+
     @Query("SELECT * FROM daily_sessions WHERE isEnded = 0 LIMIT 1")
     fun getActiveSession(): LiveData<DailySession?>
 

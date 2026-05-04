@@ -20,6 +20,9 @@ class SessionRepository @Inject constructor(
     suspend fun getSessionForDate(start: Long, end: Long) =
         sessionDao.getSessionForDate(start, end)
 
+    suspend fun getSessionsForRangeOnce(start: Long, end: Long) =
+        sessionDao.getSessionsForRangeOnce(start, end)
+
     suspend fun startSession(session: DailySession) =
         sessionDao.insert(session)
 

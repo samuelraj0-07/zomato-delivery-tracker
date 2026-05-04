@@ -101,8 +101,8 @@ class HistoryViewModel @Inject constructor(
                 _daySession.value = null
             }
 
-            val sessions = sessionRepo.getSessionsByDateRange(start, end)
-            val totalActualDist = sessions.value?.sumOf { it.actualDistance } ?: 0.0
+            val sessions = sessionRepo.getSessionsForRangeOnce(start, end)
+            val totalActualDist = sessions.sumOf { it.actualDistance }
 
             val totalOrderPay  = trips.sumOf { it.orderPay }
             val totalExtras    = trips.sumOf { it.totalExtras }
