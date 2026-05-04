@@ -26,6 +26,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import android.widget.EditText
+import com.delivery.tracker.data.model.DailySession
 
 @AndroidEntryPoint
 class HistoryFragment : Fragment() {
@@ -100,6 +102,18 @@ class HistoryFragment : Fragment() {
                 Toast.LENGTH_SHORT
             ).show()
         }
+
+        viewModel.daySession.observe(viewLifecycleOwner) { session ->
+            if (session != null) {
+                binding.cardOdometer.visibility = View.VISIBLE
+                binding.tvOdoStart.text = "${session.startOdometer} km"
+                binding.tvOdoEnd.text = if (session.endOdometer > 0) "${session.endOdometer} km" else "—"
+                binding.tvOdoDistance.text = if (session.actualDistance > 0)
+                    "${session.actualDistance} km" else "—"
+            } else {
+                binding.cardOdometer.visibility = View.GONE
+            }
+        }
     }
 
     private fun setupListeners() {
@@ -142,6 +156,11 @@ class HistoryFragment : Fragment() {
 
         binding.btnAddTripHistory.setOnClickListener {
             showAddTripDialog()
+        }
+
+        binding.btnEditOdometer.setOnClickListener {
+            val session = viewModel.daySession.value ?: return@setOnClickListener
+            showEditOdometerDialog(session)
         }
     }
 
@@ -457,6 +476,50 @@ class HistoryFragment : Fragment() {
                 }
 
                 viewModel.addTripManual(restaurant, time, pay, dist, extras)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showEditOdometerDialog(session: DailySession) {
+        val ctx = requireContext()
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 24)
+        }
+
+        val etStart = EditText(ctx).apply {
+            hint = "Start Odometer (km)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(session.startOdometer.toString())
+        }
+        val etEnd = EditText(ctx).apply {
+            hint = "End Odometer (km)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(if (session.endOdometer > 0) session.endOdometer.toString() else "")
+        }
+
+        layout.addView(etStart)
+        layout.addView(etEnd)
+
+        AlertDialog.Builder(ctx)
+            .setTitle("✏️ Edit Odometer")
+            .setView(layout)
+            .setPositiveButton("Save") { _, _ ->
+                val newStart = etStart.text.toString().toDoubleOrNull()
+                val newEnd   = etEnd.text.toString().toDoubleOrNull() ?: 0.0
+                if (newStart == null || newStart <= 0) {
+                    Toast.makeText(ctx, "Enter valid start odometer", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                if (newEnd > 0 && newEnd <= newStart) {
+                    Toast.makeText(ctx, "End must be greater than start", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                viewModel.updateSessionOdometer(session, newStart, newEnd)
+                Toast.makeText(ctx, "Odometer updated ✅", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .show()

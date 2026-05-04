@@ -53,6 +53,9 @@ class HistoryViewModel @Inject constructor(
     private val _tripAdded = MutableLiveData<Int>()   // count of trips just added
     val tripAdded: LiveData<Int> = _tripAdded
 
+    private val _daySession = MutableLiveData<DailySession?>()
+    val daySession: LiveData<DailySession?> = _daySession
+
     init { loadData() }
 
     fun setViewMode(mode: HistoryViewMode) {
@@ -90,6 +93,13 @@ class HistoryViewModel @Inject constructor(
         viewModelScope.launch {
             val trips = tripRepo.getTripsForRange(start, end)
             _trips.value = trips
+
+            // Load session for day view
+            if (mode == HistoryViewMode.DAY) {
+                _daySession.value = sessionRepo.getSessionForDate(start, end)
+            } else {
+                _daySession.value = null
+            }
 
             val sessions = sessionRepo.getSessionsByDateRange(start, end)
             val totalActualDist = sessions.value?.sumOf { it.actualDistance } ?: 0.0
@@ -189,10 +199,19 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Returns the DailySession for the given day, creating a minimal
-     * ended session if none exists.
-     */
+    fun updateSessionOdometer(session: DailySession, newStart: Double, newEnd: Double) {
+        viewModelScope.launch {
+            sessionRepo.updateSession(
+                session.copy(
+                    startOdometer = newStart,
+                    endOdometer = newEnd
+                )
+            )
+            loadData()
+        }
+    }
+
+    
     private suspend fun getOrCreateSessionForDay(dayMillis: Long): DailySession {
         val start = DateUtils.startOfDay(dayMillis)
         val end   = DateUtils.endOfDay(dayMillis)

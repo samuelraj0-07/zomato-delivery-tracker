@@ -192,6 +192,77 @@
                 </LinearLayout>
             </androidx.cardview.widget.CardView>
 
+            <!-- Odometer Card — Day view only -->
+            <androidx.cardview.widget.CardView
+                android:id="@+id/card_odometer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                app:cardBackgroundColor="@color/surface"
+                app:cardCornerRadius="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="16dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="ODOMETER"
+                        android:textColor="@color/text_secondary"
+                        android:textSize="12sp"
+                        android:letterSpacing="0.1"
+                        android:layout_marginBottom="6dp"/>
+
+                    <LinearLayout android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:orientation="horizontal">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:text="🛣 Start"
+                            android:textColor="@color/text_secondary" android:textSize="14sp"/>
+                        <TextView android:id="@+id/tv_odo_start"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textColor="@color/text_primary" android:textSize="14sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:orientation="horizontal">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:text="🏁 End"
+                            android:textColor="@color/text_secondary" android:textSize="14sp"/>
+                        <TextView android:id="@+id/tv_odo_end"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textColor="@color/text_primary" android:textSize="14sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:orientation="horizontal">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:text="📏 Distance"
+                            android:textColor="@color/text_secondary" android:textSize="14sp"/>
+                        <TextView android:id="@+id/tv_odo_distance"
+                            android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:textColor="@color/positive" android:textSize="14sp"
+                            android:textStyle="bold"/>
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btn_edit_odometer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="✏️ Edit Odometer"
+                        android:textSize="13sp"
+                        app:backgroundTint="@color/surface_variant"
+                        style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
             <!-- Trips List Header + Add button -->
             <LinearLayout
                 android:layout_width="match_parent"
