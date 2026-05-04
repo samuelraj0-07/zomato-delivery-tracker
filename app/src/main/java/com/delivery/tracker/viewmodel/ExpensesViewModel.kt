@@ -146,19 +146,16 @@ private fun loadCycleSummary(cycle: ServiceCycle) {
         }
     }
 
-    fun startNewCycle(startOdometer: Double, fuelBudget: Double, serviceBudget: Double) {
+    fun startNewCycle(startOdometer: Double, cycleKmLimit: Double, startDateMillis: Long) {
         viewModelScope.launch {
-            // Close existing active cycle
             cycleRepo.getActiveCycleOnce()?.let { existing ->
                 cycleRepo.closeCycle(existing, startOdometer)
             }
-            // Start new cycle
             cycleRepo.startNewCycle(
                 ServiceCycle(
-                    startOdometer = startOdometer,
-                    startDateMillis = System.currentTimeMillis(),
-                    fuelBudget = fuelBudget,
-                    serviceBudget = serviceBudget
+                    startOdometer   = startOdometer,
+                    cycleKmLimit    = cycleKmLimit,
+                    startDateMillis = startDateMillis
                 )
             )
         }
