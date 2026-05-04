@@ -9,6 +9,8 @@ import androidx.appcompat.app.AlertDialog
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.delivery.tracker.data.model.TdsEntry
+import com.delivery.tracker.data.model.FuelEntry
+import com.delivery.tracker.data.model.ServiceEntry
 import com.delivery.tracker.databinding.FragmentExpensesBinding
 import com.delivery.tracker.utils.DateUtils
 import com.delivery.tracker.utils.FormatUtils
@@ -126,6 +128,14 @@ class ExpensesFragment : Fragment() {
             renderTdsList(entries)
         }
 
+        viewModel.allFuel.observe(viewLifecycleOwner) { entries ->
+            renderFuelList(entries)
+        }
+
+        viewModel.allService.observe(viewLifecycleOwner) { entries ->
+            renderServiceList(entries)
+        }
+
         viewModel.allCycles.observe(viewLifecycleOwner) { cycles ->
             renderCyclesList(cycles)
         }
@@ -205,6 +215,134 @@ class ExpensesFragment : Fragment() {
             container.addView(row)
         }
 
+        totalView.text = "Total: ₹${String.format("%.0f", total)}"
+    }
+
+    private fun renderFuelList(entries: List<FuelEntry>) {
+        val container = binding.llFuelEntries
+        val emptyView = binding.tvFuelEmpty
+        val totalView = binding.tvFuelTotal
+        container.removeAllViews()
+
+        if (entries.isEmpty()) {
+            emptyView.visibility = View.VISIBLE
+            totalView.text = "Total: ₹0"
+            return
+        }
+        emptyView.visibility = View.GONE
+        val ctx = requireContext()
+        var total = 0.0
+
+        entries.forEach { entry ->
+            total += entry.amountSpent
+            val fmt = java.text.SimpleDateFormat("dd MMM", java.util.Locale.getDefault())
+
+            val divider = View(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+                setBackgroundColor(ctx.getColor(com.delivery.tracker.R.color.divider))
+            }
+            val row = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, 10, 0, 10)
+            }
+            val infoTv = TextView(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                text = "${fmt.format(java.util.Date(entry.dateMillis))}  •  ${entry.odometerReading.toInt()} km  •  ₹${entry.fuelPricePerLitre}/L"
+                textSize = 12f
+                setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
+            }
+            val amtTv = TextView(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).also { it.marginEnd = 16 }
+                text = "₹${String.format("%.0f", entry.amountSpent)}"
+                textSize = 13f
+                setTextColor(ctx.getColor(com.delivery.tracker.R.color.negative))
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            }
+            val deleteTv = TextView(ctx).apply {
+                text = "🗑"
+                textSize = 14f
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    AlertDialog.Builder(ctx)
+                        .setTitle("Delete Fuel Entry")
+                        .setMessage("Remove ₹${String.format("%.0f", entry.amountSpent)} fuel entry?")
+                        .setPositiveButton("Delete") { _, _ -> viewModel.deleteFuelEntry(entry) }
+                        .setNegativeButton("Cancel", null).show()
+                }
+            }
+            row.addView(infoTv)
+            row.addView(amtTv)
+            row.addView(deleteTv)
+            container.addView(divider)
+            container.addView(row)
+        }
+        totalView.text = "Total: ₹${String.format("%.0f", total)}"
+    }
+
+    private fun renderServiceList(entries: List<ServiceEntry>) {
+        val container = binding.llServiceEntries
+        val emptyView = binding.tvServiceEmpty
+        val totalView = binding.tvServiceTotal
+        container.removeAllViews()
+
+        if (entries.isEmpty()) {
+            emptyView.visibility = View.VISIBLE
+            totalView.text = "Total: ₹0"
+            return
+        }
+        emptyView.visibility = View.GONE
+        val ctx = requireContext()
+        var total = 0.0
+
+        entries.forEach { entry ->
+            total += entry.amountSpent
+            val fmt = java.text.SimpleDateFormat("dd MMM", java.util.Locale.getDefault())
+
+            val divider = View(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 1)
+                setBackgroundColor(ctx.getColor(com.delivery.tracker.R.color.divider))
+            }
+            val row = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, 10, 0, 10)
+            }
+            val infoTv = TextView(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                text = "${fmt.format(java.util.Date(entry.dateMillis))}  •  ${entry.odometerReading.toInt()} km  •  ${entry.details}"
+                textSize = 12f
+                setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
+            }
+            val amtTv = TextView(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT
+                ).also { it.marginEnd = 16 }
+                text = "₹${String.format("%.0f", entry.amountSpent)}"
+                textSize = 13f
+                setTextColor(ctx.getColor(com.delivery.tracker.R.color.negative))
+                setTypeface(null, android.graphics.Typeface.BOLD)
+            }
+            val deleteTv = TextView(ctx).apply {
+                text = "🗑"
+                textSize = 14f
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    AlertDialog.Builder(ctx)
+                        .setTitle("Delete Service Entry")
+                        .setMessage("Remove ₹${String.format("%.0f", entry.amountSpent)} service entry?")
+                        .setPositiveButton("Delete") { _, _ -> viewModel.deleteServiceEntry(entry) }
+                        .setNegativeButton("Cancel", null).show()
+                }
+            }
+            row.addView(infoTv)
+            row.addView(amtTv)
+            row.addView(deleteTv)
+            container.addView(divider)
+            container.addView(row)
+        }
         totalView.text = "Total: ₹${String.format("%.0f", total)}"
     }
 

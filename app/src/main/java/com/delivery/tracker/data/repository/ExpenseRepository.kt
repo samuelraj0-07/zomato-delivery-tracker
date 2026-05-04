@@ -15,6 +15,9 @@ class ExpenseRepository @Inject constructor(
     fun getFuelByDateRange(start: Long, end: Long) =
         expenseDao.getFuelByDateRange(start, end)
 
+    fun getAllFuel() = expenseDao.getAllFuel()
+    fun getAllService() = expenseDao.getAllService()
+
     fun getFuelByCycle(cycleId: Long) =
         expenseDao.getFuelByCycle(cycleId)
 

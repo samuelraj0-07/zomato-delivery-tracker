@@ -36,6 +36,8 @@ class ExpensesViewModel @Inject constructor(
     val activeCycle = cycleRepo.getActiveCycle()
     val allCycles = cycleRepo.getAllCycles()
     val allTds = expenseRepo.getAllTds()
+    val allFuel    = expenseRepo.getAllFuel()
+    val allService = expenseRepo.getAllService()
 
     private val _cycleSummary = MutableLiveData<CycleSummary>()
     val cycleSummary: LiveData<CycleSummary> = _cycleSummary
@@ -143,6 +145,18 @@ private fun loadCycleSummary(cycle: ServiceCycle) {
     fun deleteTdsEntry(entry: TdsEntry) {
         viewModelScope.launch {
             expenseRepo.deleteTdsEntry(entry)
+        }
+    }
+
+    fun deleteFuelEntry(entry: FuelEntry) {
+        viewModelScope.launch {
+            expenseRepo.deleteFuelEntry(entry)
+        }
+    }
+
+    fun deleteServiceEntry(entry: ServiceEntry) {
+        viewModelScope.launch {
+            expenseRepo.deleteServiceEntry(entry)
         }
     }
 
