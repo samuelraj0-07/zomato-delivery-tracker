@@ -7,16 +7,24 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// REPLACE WITH:
 data class CycleSummary(
     val cycle: ServiceCycle? = null,
     val totalEarnings: Double = 0.0,
     val totalExtras: Double = 0.0,
-    val totalFuelSpent: Double = 0.0,
-    val totalServiceSpent: Double = 0.0,
-    val fuelBalance: Double = 0.0,       // budget - spent (+ saved, - overspent)
-    val serviceBalance: Double = 0.0,
+    val fuelAllocated: Double = 0.0,
+    val serviceAllocated: Double = 0.0,
+    val fuelUsed: Double = 0.0,
+    val serviceUsed: Double = 0.0,
+    val fuelRemaining: Double = 0.0,
+    val serviceRemaining: Double = 0.0,
     val tripCount: Int = 0
-)
+) {
+    companion object {
+        const val FUEL_RATE_PER_KM    = 1.5
+        const val SERVICE_RATE_PER_KM = 0.7
+    }
+}
 
 @HiltViewModel
 class ExpensesViewModel @Inject constructor(
@@ -47,24 +55,30 @@ class ExpensesViewModel @Inject constructor(
         }
     }
 
-    private fun loadCycleSummary(cycle: ServiceCycle) {
-        viewModelScope.launch {
-            val trips = tripRepo.getTripsByCycle(cycle.id).value ?: emptyList()
-            val fuelSpent = expenseRepo.getTotalFuelForCycle(cycle.id)
-            val serviceSpent = expenseRepo.getTotalServiceForCycle(cycle.id)
+    // REPLACE WITH:
+private fun loadCycleSummary(cycle: ServiceCycle) {
+    viewModelScope.launch {
+        val trips        = tripRepo.getTripsByCycle(cycle.id).value ?: emptyList()
+        val fuelUsed     = expenseRepo.getTotalFuelForCycle(cycle.id)
+        val serviceUsed  = expenseRepo.getTotalServiceForCycle(cycle.id)
+        val kmRidden         = cycle.kmCovered
+        val fuelAllocated    = kmRidden * CycleSummary.FUEL_RATE_PER_KM
+        val serviceAllocated = kmRidden * CycleSummary.SERVICE_RATE_PER_KM
 
-            _cycleSummary.value = CycleSummary(
-                cycle = cycle,
-                totalEarnings = trips.sumOf { it.orderPay },
-                totalExtras = trips.sumOf { it.totalExtras },
-                totalFuelSpent = fuelSpent,
-                totalServiceSpent = serviceSpent,
-                fuelBalance = cycle.fuelBudget - fuelSpent,
-                serviceBalance = cycle.serviceBudget - serviceSpent,
-                tripCount = trips.size
-            )
-        }
+        _cycleSummary.value = CycleSummary(
+            cycle            = cycle,
+            totalEarnings    = trips.sumOf { it.orderPay },
+            totalExtras      = trips.sumOf { it.totalExtras },
+            fuelAllocated    = fuelAllocated,
+            serviceAllocated = serviceAllocated,
+            fuelUsed         = fuelUsed,
+            serviceUsed      = serviceUsed,
+            fuelRemaining    = fuelAllocated - fuelUsed,
+            serviceRemaining = serviceAllocated - serviceUsed,
+            tripCount        = trips.size
+        )
     }
+}
 
     fun addFuelEntry(
         odometer: Double,

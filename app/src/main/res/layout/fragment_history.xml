@@ -158,9 +158,19 @@
                     <LinearLayout android:layout_width="match_parent"
                         android:layout_height="wrap_content" android:orientation="horizontal">
                         <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                            android:layout_weight="1" android:text="Fuel Spent"
+                            android:layout_weight="1" android:text="⛽ Fuel (₹1.5/km)"
                             android:textColor="@color/text_secondary" android:textSize="14sp"/>
                         <TextView android:id="@+id/tv_h_fuel" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:textColor="@color/negative"
+                            android:textSize="14sp"/>
+                    </LinearLayout>
+
+                    <LinearLayout android:layout_width="match_parent"
+                        android:layout_height="wrap_content" android:orientation="horizontal">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                            android:layout_weight="1" android:text="🔧 Service (₹0.7/km)"
+                            android:textColor="@color/text_secondary" android:textSize="14sp"/>
+                        <TextView android:id="@+id/tv_h_service" android:layout_width="wrap_content"
                             android:layout_height="wrap_content" android:textColor="@color/negative"
                             android:textSize="14sp"/>
                     </LinearLayout>
@@ -181,13 +191,23 @@
                     <LinearLayout android:layout_width="match_parent"
                         android:layout_height="wrap_content" android:orientation="horizontal">
                         <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                            android:layout_weight="1" android:text="Net Remaining"
+                            android:layout_weight="1" android:text="Net Remaining (Base)"
                             android:textColor="@color/text_primary" android:textSize="15sp"
                             android:textStyle="bold"/>
                         <TextView android:id="@+id/tv_h_net" android:layout_width="wrap_content"
                             android:layout_height="wrap_content" android:textSize="15sp"
                             android:textStyle="bold"/>
                     </LinearLayout>
+
+                    <TextView
+                        android:id="@+id/tv_h_extras_addon"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="end"
+                        android:textColor="@color/warning"
+                        android:textSize="13sp"
+                        android:textStyle="italic"
+                        android:visibility="gone"/>
 
                 </LinearLayout>
             </androidx.cardview.widget.CardView>

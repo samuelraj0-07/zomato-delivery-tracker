@@ -23,12 +23,17 @@ data class HistorySummary(
     val totalActualDistance: Double = 0.0,
     val ratePerKmScreenshot: Double = 0.0,
     val ratePerKmActual: Double = 0.0,
-    val totalFuelSpent: Double = 0.0,
-    val totalServiceSpent: Double = 0.0,
+    val fuelAllocated: Double = 0.0,        // odometer km × ₹1.5
+    val serviceAllocated: Double = 0.0,     // odometer km × ₹0.7
     val totalTds: Double = 0.0,
-    val netRemaining: Double = 0.0,
+    val netRemaining: Double = 0.0,         // base earnings − fuel − service
     val periodLabel: String = ""
-)
+) {
+    companion object {
+        const val FUEL_RATE_PER_KM    = 1.5
+        const val SERVICE_RATE_PER_KM = 0.7
+    }
+}
 
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
@@ -111,9 +116,11 @@ class HistoryViewModel @Inject constructor(
             val totalIncentive = trips.sumOf { it.incentivePay }
             val totalScreenDist = trips.sumOf { it.screenshotDistance }
 
-            val fuelSpent = expenseRepo.getTotalFuel(start, end)
-            val tdsSpent  = if (mode == HistoryViewMode.DAY) 0.0 else expenseRepo.getTotalTds(start, end)
-            val netRemaining = totalOrderPay + totalExtras - fuelSpent - tdsSpent
+            // REPLACE WITH:
+            val tdsSpent         = if (mode == HistoryViewMode.DAY) 0.0 else expenseRepo.getTotalTds(start, end)
+            val fuelAllocated    = totalActualDist * HistorySummary.FUEL_RATE_PER_KM
+            val serviceAllocated = totalActualDist * HistorySummary.SERVICE_RATE_PER_KM
+            val netRemaining     = totalOrderPay - fuelAllocated - serviceAllocated
 
             _summary.value = HistorySummary(
                 totalTrips              = trips.size,
@@ -126,7 +133,8 @@ class HistoryViewModel @Inject constructor(
                 totalActualDistance     = totalActualDist,
                 ratePerKmScreenshot     = if (totalScreenDist > 0) totalOrderPay / totalScreenDist else 0.0,
                 ratePerKmActual         = if (totalActualDist > 0) totalOrderPay / totalActualDist else 0.0,
-                totalFuelSpent          = fuelSpent,
+                fuelAllocated           = fuelAllocated,
+                serviceAllocated        = serviceAllocated,
                 totalTds                = tdsSpent,
                 netRemaining            = netRemaining,
                 periodLabel             = label

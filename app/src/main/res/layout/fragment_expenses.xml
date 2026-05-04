@@ -295,47 +295,67 @@
                                 android:textStyle="bold"/>
                         </LinearLayout>
 
+                        <!-- Column headers -->
                         <LinearLayout android:layout_width="match_parent"
-                            android:layout_height="wrap_content" android:orientation="horizontal">
+                            android:layout_height="wrap_content" android:orientation="horizontal"
+                            android:layout_marginTop="4dp">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                                android:layout_weight="1" android:text="Fuel Spent"
-                                android:textColor="@color/text_secondary" android:textSize="14sp"/>
-                            <TextView android:id="@+id/tv_cycle_fuel"
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:textColor="@color/negative" android:textSize="14sp"/>
+                                android:layout_weight="1.4" android:text=""
+                                android:textColor="@color/text_secondary" android:textSize="12sp"/>
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:text="Allocated"
+                                android:textColor="@color/text_secondary" android:textSize="11sp"
+                                android:gravity="end"/>
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:text="Used"
+                                android:textColor="@color/text_secondary" android:textSize="11sp"
+                                android:gravity="end"/>
+                            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:text="Remaining"
+                                android:textColor="@color/text_secondary" android:textSize="11sp"
+                                android:gravity="end"/>
                         </LinearLayout>
 
+                        <!-- Fuel row -->
                         <LinearLayout android:layout_width="match_parent"
-                            android:layout_height="wrap_content" android:orientation="horizontal">
+                            android:layout_height="wrap_content" android:orientation="horizontal"
+                            android:layout_marginTop="6dp">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                                android:layout_weight="1" android:text="Service Spent"
+                                android:layout_weight="1.4" android:text="⛽ Fuel"
                                 android:textColor="@color/text_secondary" android:textSize="14sp"/>
-                            <TextView android:id="@+id/tv_cycle_service"
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:textColor="@color/negative" android:textSize="14sp"/>
+                            <TextView android:id="@+id/tv_cycle_fuel_allocated"
+                                android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:gravity="end"
+                                android:textColor="@color/text_primary" android:textSize="13sp"/>
+                            <TextView android:id="@+id/tv_cycle_fuel_used"
+                                android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:gravity="end"
+                                android:textColor="@color/negative" android:textSize="13sp"/>
+                            <TextView android:id="@+id/tv_cycle_fuel_remaining"
+                                android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:gravity="end"
+                                android:textSize="13sp" android:textStyle="bold"/>
                         </LinearLayout>
 
-                        <View android:layout_width="match_parent" android:layout_height="1dp"
-                            android:background="@color/divider"/>
-
+                        <!-- Service row -->
                         <LinearLayout android:layout_width="match_parent"
-                            android:layout_height="wrap_content" android:orientation="horizontal">
+                            android:layout_height="wrap_content" android:orientation="horizontal"
+                            android:layout_marginTop="6dp">
                             <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                                android:layout_weight="1" android:text="Fuel Balance"
+                                android:layout_weight="1.4" android:text="🔧 Service"
                                 android:textColor="@color/text_secondary" android:textSize="14sp"/>
-                            <TextView android:id="@+id/tv_cycle_fuel_balance"
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:textSize="14sp" android:textStyle="bold"/>
-                        </LinearLayout>
-
-                        <LinearLayout android:layout_width="match_parent"
-                            android:layout_height="wrap_content" android:orientation="horizontal">
-                            <TextView android:layout_width="0dp" android:layout_height="wrap_content"
-                                android:layout_weight="1" android:text="Service Balance"
-                                android:textColor="@color/text_secondary" android:textSize="14sp"/>
-                            <TextView android:id="@+id/tv_cycle_service_balance"
-                                android:layout_width="wrap_content" android:layout_height="wrap_content"
-                                android:textSize="14sp" android:textStyle="bold"/>
+                            <TextView android:id="@+id/tv_cycle_service_allocated"
+                                android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:gravity="end"
+                                android:textColor="@color/text_primary" android:textSize="13sp"/>
+                            <TextView android:id="@+id/tv_cycle_service_used"
+                                android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:gravity="end"
+                                android:textColor="@color/negative" android:textSize="13sp"/>
+                            <TextView android:id="@+id/tv_cycle_service_remaining"
+                                android:layout_width="0dp" android:layout_height="wrap_content"
+                                android:layout_weight="1" android:gravity="end"
+                                android:textSize="13sp" android:textStyle="bold"/>
                         </LinearLayout>
 
                         <com.google.android.material.button.MaterialButton
