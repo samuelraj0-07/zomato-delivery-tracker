@@ -73,33 +73,39 @@ class ExpensesFragment : Fragment() {
 
     private fun setupObservers() {
         viewModel.cycleSummary.observe(viewLifecycleOwner) { summary ->
-            val cycle = summary.cycle ?: return@observe
-            binding.apply {
-                tvCycleProgress.text =
-                    "${FormatUtils.formatKm(cycle.kmCovered)} / ${FormatUtils.formatKm(cycle.cycleKmLimit)} " +
-                    "(${cycle.progressPercent}%)"
-                pbCycle.progress = cycle.progressPercent
-                tvCycleEarnings.text = FormatUtils.formatMoney(summary.totalEarnings)
-                tvCycleFuelUsed.text     = FormatUtils.formatMoney(summary.fuelUsed)
-                tvCycleServiceUsed.text  = FormatUtils.formatMoney(summary.serviceUsed)
+        val cycle = summary.cycle ?: return@observe
+        val fmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+        binding.apply {
+            // Show start odometer, km run so far, start date
+            tvCycleProgress.text =
+                "Started: ${cycle.startOdometer.toInt()} km  |  " +
+                "Run: ${cycle.kmCovered.toInt()} km  |  " +
+                "From: ${fmt.format(java.util.Date(cycle.startDateMillis))}"
+            pbCycle.visibility = View.GONE
+            tvCycleEarnings.text = FormatUtils.formatMoney(summary.totalEarnings)
+            tvCycleFuelUsed.text     = FormatUtils.formatMoney(summary.fuelUsed)
+            tvCycleServiceUsed.text  = FormatUtils.formatMoney(summary.serviceUsed)
 
-                tvCycleFuelRemaining.text = FormatUtils.formatBalance(summary.fuelRemaining)
-                tvCycleFuelRemaining.setTextColor(
-                    requireContext().getColor(
-                        if (summary.fuelRemaining >= 0) com.delivery.tracker.R.color.positive
-                        else com.delivery.tracker.R.color.negative
-                    )
+            tvCycleFuelRemaining.text = FormatUtils.formatBalance(summary.fuelRemaining)
+            tvCycleFuelRemaining.setTextColor(
+                requireContext().getColor(
+                    if (summary.fuelRemaining >= 0) com.delivery.tracker.R.color.positive
+                    else com.delivery.tracker.R.color.negative
                 )
+            )
 
-                tvCycleServiceRemaining.text = FormatUtils.formatBalance(summary.serviceRemaining)
-                tvCycleServiceRemaining.setTextColor(
-                    requireContext().getColor(
-                        if (summary.serviceRemaining >= 0) com.delivery.tracker.R.color.positive
-                        else com.delivery.tracker.R.color.negative
-                    )
+            tvCycleServiceRemaining.text = FormatUtils.formatBalance(summary.serviceRemaining)
+            tvCycleServiceRemaining.setTextColor(
+                requireContext().getColor(
+                    if (summary.serviceRemaining >= 0) com.delivery.tracker.R.color.positive
+                    else com.delivery.tracker.R.color.negative
                 )
-            }
+            )
+
+            // Show End Cycle button only if cycle is active
+            btnEndCycle.visibility = if (cycle.isActive) View.VISIBLE else View.GONE
         }
+    }
 
         viewModel.fuelSaved.observe(viewLifecycleOwner) {
             Toast.makeText(requireContext(), "Fuel entry saved ✅", Toast.LENGTH_SHORT).show()
@@ -254,6 +260,10 @@ class ExpensesFragment : Fragment() {
         binding.btnNewCycle.setOnClickListener {
             showNewCycleDialog()
         }
+
+        binding.btnEndCycle.setOnClickListener {
+            showEndCycleDialog()
+        }
     }
 
     // ── Week picker dialog ─────────────────────────────────────────────────
@@ -362,76 +372,56 @@ class ExpensesFragment : Fragment() {
             setPadding(48, 32, 48, 16)
         }
 
-        // Start odometer field
         val etStartOdo = android.widget.EditText(ctx).apply {
-            hint = "Start Odometer (km)"
+            hint = "Start Odometer reading (km)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or
                     android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = 16 }
         }
-
-        // Cycle km limit field (replaces hardcoded 3000)
-        val etCycleKm = android.widget.EditText(ctx).apply {
-            hint = "Cycle KM Limit (e.g. 3000)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText("3000")
-            layoutParams = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ).apply { bottomMargin = 16 }
-        }
-
-        // Start date picker button
-        val tvStartDate = android.widget.TextView(ctx).apply {
-            text = "📅 Tap to select start date"
-            textSize = 14f
-            setPadding(0, 8, 0, 8)
-            setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
-            isClickable = true
-            isFocusable = true
-        }
-
         layout.addView(etStartOdo)
-        layout.addView(etCycleKm)
-        layout.addView(tvStartDate)
-
-        // Date picker logic
-        var selectedStartMillis = System.currentTimeMillis()
-        val cal = java.util.Calendar.getInstance()
-
-        tvStartDate.setOnClickListener {
-            android.app.DatePickerDialog(
-                ctx,
-                { _, year, month, day ->
-                    cal.set(year, month, day, 0, 0, 0)
-                    cal.set(java.util.Calendar.MILLISECOND, 0)
-                    selectedStartMillis = cal.timeInMillis
-                    val fmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
-                    tvStartDate.text = "📅 Start Date: ${fmt.format(cal.time)}"
-                    tvStartDate.setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_primary))
-                },
-                cal.get(java.util.Calendar.YEAR),
-                cal.get(java.util.Calendar.MONTH),
-                cal.get(java.util.Calendar.DAY_OF_MONTH)
-            ).show()
-        }
 
         AlertDialog.Builder(ctx)
-            .setTitle("Start New Service Cycle")
+            .setTitle("🔄 Start New Service Cycle")
+            .setMessage("Enter your current odometer reading to begin a new cycle.")
             .setView(layout)
             .setPositiveButton("Start") { _, _ ->
                 val startOdo = etStartOdo.text.toString().toDoubleOrNull()
-                val cycleKm  = etCycleKm.text.toString().toDoubleOrNull() ?: 3000.0
                 if (startOdo == null || startOdo <= 0) {
-                    Toast.makeText(ctx, "Enter a valid start odometer", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(ctx, "Enter a valid odometer reading", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                viewModel.startNewCycle(startOdo, cycleKm, selectedStartMillis)
+                viewModel.startNewCycle(startOdo)
                 Toast.makeText(ctx, "New cycle started 🔄", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showEndCycleDialog() {
+        val ctx = requireContext()
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+
+        val etEndOdo = android.widget.EditText(ctx).apply {
+            hint = "End Odometer reading (km)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        layout.addView(etEndOdo)
+
+        AlertDialog.Builder(ctx)
+            .setTitle("🏁 End Service Cycle")
+            .setMessage("Enter your current odometer reading to close this cycle.")
+            .setView(layout)
+            .setPositiveButton("End Cycle") { _, _ ->
+                val endOdo = etEndOdo.text.toString().toDoubleOrNull()
+                if (endOdo == null || endOdo <= 0) {
+                    Toast.makeText(ctx, "Enter a valid odometer reading", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                viewModel.endCurrentCycle(endOdo)
+                Toast.makeText(ctx, "Cycle ended ✅", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .show()

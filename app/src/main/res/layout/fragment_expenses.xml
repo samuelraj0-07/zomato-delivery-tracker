@@ -279,7 +279,8 @@
                             style="@style/Widget.AppCompat.ProgressBar.Horizontal"
                             android:progressTint="@color/primary"
                             android:progressBackgroundTint="@color/surface_variant"
-                            android:max="100"/>
+                            android:max="100"
+                            android:visibility="gone"/>
 
                         <View android:layout_width="match_parent" android:layout_height="1dp"
                             android:background="@color/divider"/>
@@ -363,6 +364,13 @@
                             android:layout_height="wrap_content" android:text="START NEW CYCLE"
                             app:backgroundTint="@color/surface_variant"
                             style="@style/Widget.MaterialComponents.Button.OutlinedButton"/>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_end_cycle" android:layout_width="match_parent"
+                            android:layout_height="wrap_content" android:text="🏁 END THIS CYCLE"
+                            android:layout_marginTop="8dp"
+                            app:backgroundTint="@color/negative"
+                            android:visibility="gone"/>
                     </LinearLayout>
                 </androidx.cardview.widget.CardView>
             </LinearLayout>
