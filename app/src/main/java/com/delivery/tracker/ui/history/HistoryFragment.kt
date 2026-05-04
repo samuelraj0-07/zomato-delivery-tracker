@@ -26,7 +26,6 @@ import dagger.hilt.android.AndroidEntryPoint
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import android.widget.EditText
 import com.delivery.tracker.data.model.DailySession
 
 @AndroidEntryPoint
