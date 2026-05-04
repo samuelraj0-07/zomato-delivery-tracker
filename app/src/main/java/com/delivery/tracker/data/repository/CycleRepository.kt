@@ -28,4 +28,10 @@ class CycleRepository @Inject constructor(
                 endDateMillis = System.currentTimeMillis()
             )
         )
+
+    suspend fun deleteCycle(cycle: ServiceCycle) =
+        cycleDao.delete(cycle)
+
+    suspend fun updateCycleDetails(cycle: ServiceCycle) =
+        cycleDao.update(cycle)
 }

@@ -125,6 +125,10 @@ class ExpensesFragment : Fragment() {
         viewModel.allTds.observe(viewLifecycleOwner) { entries ->
             renderTdsList(entries)
         }
+
+        viewModel.allCycles.observe(viewLifecycleOwner) { cycles ->
+            renderCyclesList(cycles)
+        }
     }
     
     private fun renderTdsList(entries: List<TdsEntry>) {
@@ -379,9 +383,35 @@ class ExpensesFragment : Fragment() {
         }
         layout.addView(etStartOdo)
 
+        // Date picker button — defaults to today
+        val selectedCal = Calendar.getInstance()
+        val fmt = java.text.SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+        val tvDate = TextView(ctx).apply {
+            text = "📅 Start Date: ${fmt.format(selectedCal.time)}"
+            textSize = 14f
+            setPadding(0, 16, 0, 4)
+            setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_primary))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                android.app.DatePickerDialog(
+                    ctx,
+                    { _, y, m, d ->
+                        selectedCal.set(y, m, d, 0, 0, 0)
+                        selectedCal.set(Calendar.MILLISECOND, 0)
+                        text = "📅 Start Date: ${fmt.format(selectedCal.time)}"
+                    },
+                    selectedCal.get(Calendar.YEAR),
+                    selectedCal.get(Calendar.MONTH),
+                    selectedCal.get(Calendar.DAY_OF_MONTH)
+                ).show()
+            }
+        }
+        layout.addView(tvDate)
+
         AlertDialog.Builder(ctx)
             .setTitle("🔄 Start New Service Cycle")
-            .setMessage("Enter your current odometer reading to begin a new cycle.")
+            .setMessage("Enter odometer reading and start date.")
             .setView(layout)
             .setPositiveButton("Start") { _, _ ->
                 val startOdo = etStartOdo.text.toString().toDoubleOrNull()
@@ -389,7 +419,7 @@ class ExpensesFragment : Fragment() {
                     Toast.makeText(ctx, "Enter a valid odometer reading", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                viewModel.startNewCycle(startOdo)
+                viewModel.startNewCycleWithDate(startOdo, selectedCal.timeInMillis)
                 Toast.makeText(ctx, "New cycle started 🔄", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
@@ -436,6 +466,155 @@ class ExpensesFragment : Fragment() {
         binding.etServiceOdometer.text?.clear()
         binding.etServiceAmount.text?.clear()
         binding.etServiceDetails.text?.clear()
+    }
+
+    // ── Cycles list ───────────────────────────────────────────────────────
+    private fun renderCyclesList(cycles: List<com.delivery.tracker.data.model.ServiceCycle>) {
+        val container = binding.llCyclesList
+        val emptyView = binding.tvCyclesEmpty
+        container.removeAllViews()
+
+        if (cycles.isEmpty()) {
+            emptyView.visibility = View.VISIBLE
+            return
+        }
+        emptyView.visibility = View.GONE
+        val ctx = requireContext()
+        val fmt = java.text.SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+
+        cycles.forEach { cycle ->
+            val divider = View(ctx).apply {
+                layoutParams = android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT, 1
+                )
+                setBackgroundColor(ctx.getColor(com.delivery.tracker.R.color.divider))
+            }
+
+            val row = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(0, 12, 0, 12)
+            }
+
+            val statusBadge = if (cycle.isActive) " 🟢 Active" else " ⚫ Ended"
+            val endText = if (cycle.endOdometer > 0) " → ${cycle.endOdometer.toInt()} km" else ""
+
+            val infoRow = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+            }
+
+            val infoTv = TextView(ctx).apply {
+                layoutParams = android.widget.LinearLayout.LayoutParams(0,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                text = "${fmt.format(java.util.Date(cycle.startDateMillis))}$statusBadge\n" +
+                        "Odo: ${cycle.startOdometer.toInt()}$endText km  |  " +
+                        "Run: ${cycle.kmCovered.toInt()} km"
+                textSize = 13f
+                setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_primary))
+            }
+
+            val editTv = TextView(ctx).apply {
+                text = "✏️"
+                textSize = 18f
+                setPadding(16, 0, 8, 0)
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { showEditCycleDialog(cycle) }
+            }
+
+            val deleteTv = TextView(ctx).apply {
+                text = "🗑"
+                textSize = 18f
+                setPadding(8, 0, 0, 0)
+                isClickable = true
+                isFocusable = true
+                setOnClickListener {
+                    AlertDialog.Builder(ctx)
+                        .setTitle("Delete Cycle")
+                        .setMessage("Delete cycle starting ${fmt.format(java.util.Date(cycle.startDateMillis))}?")
+                        .setPositiveButton("Delete") { _, _ -> viewModel.deleteCycle(cycle) }
+                        .setNegativeButton("Cancel", null)
+                        .show()
+                }
+            }
+
+            infoRow.addView(infoTv)
+            infoRow.addView(editTv)
+            infoRow.addView(deleteTv)
+            row.addView(infoRow)
+            container.addView(divider)
+            container.addView(row)
+        }
+    }
+
+    private fun showEditCycleDialog(cycle: com.delivery.tracker.data.model.ServiceCycle) {
+        val ctx = requireContext()
+        val fmt = java.text.SimpleDateFormat("dd MMM yyyy", Locale.getDefault())
+
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+        }
+
+        val etStartOdo = android.widget.EditText(ctx).apply {
+            hint = "Start Odometer (km)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(cycle.startOdometer.toInt().toString())
+        }
+        layout.addView(etStartOdo)
+
+        val etEndOdo = android.widget.EditText(ctx).apply {
+            hint = "End Odometer (km) — leave 0 if still active"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(if (cycle.endOdometer > 0) cycle.endOdometer.toInt().toString() else "")
+        }
+        layout.addView(etEndOdo)
+
+        // Start date picker
+        val startCal = Calendar.getInstance().apply { timeInMillis = cycle.startDateMillis }
+        val tvStartDate = TextView(ctx).apply {
+            text = "📅 Start Date: ${fmt.format(java.util.Date(cycle.startDateMillis))}"
+            textSize = 14f
+            setPadding(0, 16, 0, 4)
+            setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_primary))
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                android.app.DatePickerDialog(
+                    ctx,
+                    { _, y, m, d ->
+                        startCal.set(y, m, d, 0, 0, 0)
+                        startCal.set(Calendar.MILLISECOND, 0)
+                        text = "📅 Start Date: ${fmt.format(startCal.time)}"
+                    },
+                    startCal.get(Calendar.YEAR),
+                    startCal.get(Calendar.MONTH),
+                    startCal.get(Calendar.DAY_OF_MONTH)
+                ).show()
+            }
+        }
+        layout.addView(tvStartDate)
+
+        AlertDialog.Builder(ctx)
+            .setTitle("✏️ Edit Cycle")
+            .setView(layout)
+            .setPositiveButton("Save") { _, _ ->
+                val newStartOdo = etStartOdo.text.toString().toDoubleOrNull() ?: cycle.startOdometer
+                val newEndOdo   = etEndOdo.text.toString().toDoubleOrNull() ?: cycle.endOdometer
+                val isStillActive = newEndOdo <= 0.0
+                viewModel.updateCycleDetails(
+                    cycle.copy(
+                        startOdometer   = newStartOdo,
+                        endOdometer     = if (isStillActive) 0.0 else newEndOdo,
+                        startDateMillis = startCal.timeInMillis,
+                        isActive        = isStillActive
+                    )
+                )
+                Toast.makeText(ctx, "Cycle updated ✅", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun clearTdsForm() {

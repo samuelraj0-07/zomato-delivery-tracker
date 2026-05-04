@@ -20,4 +20,7 @@ interface ServiceCycleDao {
 
     @Query("SELECT * FROM service_cycles ORDER BY startDateMillis DESC")
     fun getAllCycles(): LiveData<List<ServiceCycle>>
+
+    @Delete
+    suspend fun delete(cycle: ServiceCycle)
 }

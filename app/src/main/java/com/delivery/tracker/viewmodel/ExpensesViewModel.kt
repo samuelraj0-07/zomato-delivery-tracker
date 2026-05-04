@@ -147,15 +147,18 @@ private fun loadCycleSummary(cycle: ServiceCycle) {
     }
 
     fun startNewCycle(startOdometer: Double) {
+        startNewCycleWithDate(startOdometer, System.currentTimeMillis())
+    }
+
+    fun startNewCycleWithDate(startOdometer: Double, startDateMillis: Long) {
         viewModelScope.launch {
-            // Close existing active cycle first
             cycleRepo.getActiveCycleOnce()?.let { existing ->
                 cycleRepo.closeCycle(existing, startOdometer)
             }
             cycleRepo.startNewCycle(
                 ServiceCycle(
                     startOdometer   = startOdometer,
-                    startDateMillis = System.currentTimeMillis()
+                    startDateMillis = startDateMillis
                 )
             )
         }
@@ -171,4 +174,16 @@ fun endCurrentCycle(endOdometer: Double) {
 
     fun getFuelByCycle(cycleId: Long) = expenseRepo.getFuelByCycle(cycleId)
     fun getServiceByCycle(cycleId: Long) = expenseRepo.getServiceByCycle(cycleId)
+
+    fun deleteCycle(cycle: ServiceCycle) {
+        viewModelScope.launch {
+            cycleRepo.deleteCycle(cycle)
+        }
+    }
+
+    fun updateCycleDetails(cycle: ServiceCycle) {
+        viewModelScope.launch {
+            cycleRepo.updateCycleDetails(cycle)
+        }
+    }
 }
