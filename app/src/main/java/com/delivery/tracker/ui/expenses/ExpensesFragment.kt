@@ -80,21 +80,21 @@ class ExpensesFragment : Fragment() {
                     "(${cycle.progressPercent}%)"
                 pbCycle.progress = cycle.progressPercent
                 tvCycleEarnings.text = FormatUtils.formatMoney(summary.totalEarnings)
-                tvCycleFuel.text     = FormatUtils.formatMoney(summary.totalFuelSpent)
-                tvCycleService.text  = FormatUtils.formatMoney(summary.totalServiceSpent)
+                tvCycleFuelUsed.text     = FormatUtils.formatMoney(summary.fuelUsed)
+                tvCycleServiceUsed.text  = FormatUtils.formatMoney(summary.serviceUsed)
 
-                tvCycleFuelBalance.text = FormatUtils.formatBalance(summary.fuelBalance)
-                tvCycleFuelBalance.setTextColor(
+                tvCycleFuelRemaining.text = FormatUtils.formatBalance(summary.fuelRemaining)
+                tvCycleFuelRemaining.setTextColor(
                     requireContext().getColor(
-                        if (summary.fuelBalance >= 0) com.delivery.tracker.R.color.positive
+                        if (summary.fuelRemaining >= 0) com.delivery.tracker.R.color.positive
                         else com.delivery.tracker.R.color.negative
                     )
                 )
 
-                tvCycleServiceBalance.text = FormatUtils.formatBalance(summary.serviceBalance)
-                tvCycleServiceBalance.setTextColor(
+                tvCycleServiceRemaining.text = FormatUtils.formatBalance(summary.serviceRemaining)
+                tvCycleServiceRemaining.setTextColor(
                     requireContext().getColor(
-                        if (summary.serviceBalance >= 0) com.delivery.tracker.R.color.positive
+                        if (summary.serviceRemaining >= 0) com.delivery.tracker.R.color.positive
                         else com.delivery.tracker.R.color.negative
                     )
                 )
