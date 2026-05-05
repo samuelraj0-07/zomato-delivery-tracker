@@ -53,19 +53,33 @@ class ExpensesViewModel @Inject constructor(
     val tdsSaved: LiveData<Boolean> = _tdsSaved
 
     init {
-        activeCycle.observeForever { cycle ->
-            cycle?.let { loadCycleSummary(it) }
+        // Merge cycle + expense changes into one reactive stream
+        val trigger = MediatorLiveData<Unit>()
+        trigger.addSource(activeCycle) { trigger.value = Unit }
+        trigger.addSource(allFuel)    { trigger.value = Unit }
+        trigger.addSource(allService) { trigger.value = Unit }
+
+        trigger.observeForever {
+            val cycle = activeCycle.value ?: return@observeForever
+            loadCycleSummary(cycle)
         }
     }
 
     // REPLACE WITH:
 private fun loadCycleSummary(cycle: ServiceCycle) {
     viewModelScope.launch {
-        // FIX: was reading LiveData.value inside coroutine — always null
-        val trips        = tripRepo.getTripsByCycleOnce(cycle.id)
-        val fuelUsed     = expenseRepo.getTotalFuelForCycle(cycle.id)
-        val serviceUsed  = expenseRepo.getTotalServiceForCycle(cycle.id)
-        val kmRidden         = cycle.kmCovered
+        val trips       = tripRepo.getTripsByCycleOnce(cycle.id)
+        val fuelUsed    = expenseRepo.getTotalFuelForCycle(cycle.id)
+        val serviceUsed = expenseRepo.getTotalServiceForCycle(cycle.id)
+
+        // For active cycles, use latest odometer from sessions instead of endOdometer
+        val currentOdo = if (cycle.isActive) {
+            sessionRepo.getMaxEndOdometer() ?: cycle.startOdometer
+        } else {
+            cycle.endOdometer
+        }
+        val kmRidden = (currentOdo - cycle.startOdometer).coerceAtLeast(0.0)
+
         val fuelAllocated    = kmRidden * CycleSummary.FUEL_RATE_PER_KM
         val serviceAllocated = kmRidden * CycleSummary.SERVICE_RATE_PER_KM
 
