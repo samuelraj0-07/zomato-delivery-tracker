@@ -29,7 +29,7 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.Spinner
 import androidx.fragment.app.activityViewModels
-import com.delivery.tracker.viewmodel.SharedViewModels
+import com.delivery.tracker.viewmodel.SharedViewModel
 
 @AndroidEntryPoint
 class TodayFragment : Fragment() {
