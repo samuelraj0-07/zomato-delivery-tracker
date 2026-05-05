@@ -225,4 +225,16 @@ private fun loadCycleSummary(cycle: ServiceCycle) {
             callback(maxOdo)
         }
     }
+
+    fun updateFuelEntry(entry: FuelEntry) {
+        viewModelScope.launch { expenseRepo.updateFuelEntry(entry) }
+    }
+
+    fun updateServiceEntry(entry: ServiceEntry) {
+        viewModelScope.launch { expenseRepo.updateServiceEntry(entry) }
+    }
+
+    suspend fun getCycleEarnings(cycleId: Long)    = tripRepo.getTotalEarningsForCycle(cycleId)
+    suspend fun getCycleFuelUsed(cycleId: Long)    = expenseRepo.getTotalFuelForCycle(cycleId)
+    suspend fun getCycleServiceUsed(cycleId: Long) = expenseRepo.getTotalServiceForCycle(cycleId)
 }

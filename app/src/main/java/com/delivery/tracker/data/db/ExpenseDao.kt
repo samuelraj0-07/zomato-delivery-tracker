@@ -64,4 +64,10 @@ interface ExpenseDao {
 
     @Query("SELECT SUM(amount) FROM tds_entries WHERE weekStartMillis < :end AND weekEndMillis > :start")
     suspend fun getTotalTds(start: Long, end: Long): Double?
+
+    @Update
+    suspend fun updateFuel(entry: FuelEntry)
+
+    @Update
+    suspend fun updateService(entry: ServiceEntry)
 }

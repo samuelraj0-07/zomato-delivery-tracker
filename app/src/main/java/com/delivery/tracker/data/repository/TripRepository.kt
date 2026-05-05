@@ -35,4 +35,7 @@ class TripRepository @Inject constructor(
 
     suspend fun getTripsForRange(start: Long, end: Long) =
         tripDao.getTripsForRange(start, end)
+
+    suspend fun getTotalEarningsForCycle(cycleId: Long): Double =
+        tripDao.getTotalEarningsForCycle(cycleId) ?: 0.0
 }

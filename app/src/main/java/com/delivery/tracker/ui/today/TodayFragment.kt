@@ -153,6 +153,23 @@ class TodayFragment : Fragment() {
 
         viewModel.sessionEnded.observe(viewLifecycleOwner) {
             Toast.makeText(requireContext(), "Day ended! Actual ₹/km updated ✅", Toast.LENGTH_SHORT).show()
+            // Clear the screen back to fresh state
+            binding.apply {
+                etStartOdometer.setText("")
+                etStartOdometer.isEnabled = true
+                etEndOdometer.setText("")
+                etEndOdometer.isEnabled = true
+                tvDate.isClickable = true
+                tvDate.setCompoundDrawablesRelativeWithIntrinsicBounds(
+                    0, 0, android.R.drawable.ic_menu_edit, 0
+                )
+                setButtonTint(btnStartDay, R.color.primary)
+                setButtonTint(btnEndDay,   R.color.surface_variant)
+                btnStartDay.isEnabled = true
+                btnEndDay.isEnabled   = false
+                rowActualRate.visibility = View.GONE
+                rowDeadKm.visibility     = View.GONE
+            }
         }
 
         viewModel.odometerError.observe(viewLifecycleOwner) { message ->

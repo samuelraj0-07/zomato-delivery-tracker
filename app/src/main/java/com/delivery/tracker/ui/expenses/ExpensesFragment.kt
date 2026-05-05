@@ -22,6 +22,9 @@ import java.util.Calendar
 import java.util.Locale
 import android.content.Context
 import android.content.SharedPreferences
+import androidx.lifecycle.lifecycleScope
+import com.delivery.tracker.viewmodel.CycleSummary
+import kotlinx.coroutines.launch
 
 @AndroidEntryPoint
 class ExpensesFragment : Fragment() {
@@ -60,8 +63,8 @@ class ExpensesFragment : Fragment() {
         // Show last known odometer as hint so users don't enter wrong values
         viewModel.getLastKnownOdometer { lastOdo ->
             if (lastOdo > 0) {
-                binding.etFuelOdometer.hint    = "Last: ${lastOdo.toInt()} km"
-                binding.etServiceOdometer.hint = "Last: ${lastOdo.toInt()} km"
+                binding.tilFuelOdometer.hint    = "Odometer Reading (km)  •  Last: ${lastOdo.toInt()} km"
+                binding.tilServiceOdometer.hint = "Odometer Reading (km)  •  Last: ${lastOdo.toInt()} km"
             }
         }
     }
@@ -281,8 +284,17 @@ class ExpensesFragment : Fragment() {
                         .setNegativeButton("Cancel", null).show()
                 }
             }
+            val editTv = TextView(ctx).apply {
+                text = "✏️"
+                textSize = 14f
+                setPadding(0, 0, 16, 0)
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { showEditFuelDialog(entry) }
+            }
             row.addView(infoTv)
             row.addView(amtTv)
+            row.addView(editTv)
             row.addView(deleteTv)
             container.addView(divider)
             container.addView(row)
@@ -345,8 +357,17 @@ class ExpensesFragment : Fragment() {
                         .setNegativeButton("Cancel", null).show()
                 }
             }
+            val editTv = TextView(ctx).apply {
+                text = "✏️"
+                textSize = 14f
+                setPadding(0, 0, 16, 0)
+                isClickable = true
+                isFocusable = true
+                setOnClickListener { showEditServiceDialog(entry) }
+            }
             row.addView(infoTv)
             row.addView(amtTv)
+            row.addView(editTv)
             row.addView(deleteTv)
             container.addView(divider)
             container.addView(row)
@@ -626,11 +647,35 @@ class ExpensesFragment : Fragment() {
             val infoTv = TextView(ctx).apply {
                 layoutParams = android.widget.LinearLayout.LayoutParams(0,
                     android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "${fmt.format(java.util.Date(cycle.startDateMillis))}$statusBadge\n" +
-                        "Odo: ${cycle.startOdometer.toInt()}$endText km  |  " +
-                        "Run: ${cycle.kmCovered.toInt()} km"
                 textSize = 13f
                 setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_primary))
+                text = "${fmt.format(java.util.Date(cycle.startDateMillis))}$statusBadge\n" +
+                    "Odo: ${cycle.startOdometer.toInt()}$endText km  |  Run: ${cycle.kmCovered.toInt()} km"
+            }
+
+            // Fetch live details per cycle and add a second detail row
+            val detailTv = TextView(ctx).apply {
+                textSize = 12f
+                setPadding(0, 2, 0, 0)
+                setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
+                text = "Loading..."
+            }
+
+            // Async fetch earnings + fuel/service per cycle
+            viewLifecycleOwner.lifecycleScope.launch {
+                val earnings    = tripRepo.getTotalEarningsForCycle(cycle.id)
+                val fuelUsed    = expenseRepo.getTotalFuelForCycle(cycle.id)
+                val serviceUsed = expenseRepo.getTotalServiceForCycle(cycle.id)
+                val fuelAlloc   = cycle.kmCovered * CycleSummary.FUEL_RATE_PER_KM
+                val svcAlloc    = cycle.kmCovered * CycleSummary.SERVICE_RATE_PER_KM
+                val fuelRem     = fuelAlloc - fuelUsed
+                val svcRem      = svcAlloc - serviceUsed
+                val fuelSign    = if (fuelRem >= 0) "✅" else "⚠️"
+                val svcSign     = if (svcRem >= 0) "✅" else "⚠️"
+                detailTv.text =
+                    "Earned: ₹${String.format("%.0f", earnings)}  |  " +
+                    "Fuel rem: $fuelSign ₹${String.format("%.0f", fuelRem)}  |  " +
+                    "Svc rem: $svcSign ₹${String.format("%.0f", svcRem)}"
             }
 
             val editTv = TextView(ctx).apply {
@@ -662,6 +707,7 @@ class ExpensesFragment : Fragment() {
             infoRow.addView(editTv)
             infoRow.addView(deleteTv)
             row.addView(infoRow)
+            row.addView(detailTv)
             container.addView(divider)
             container.addView(row)
         }
@@ -748,6 +794,96 @@ class ExpensesFragment : Fragment() {
             requireContext().getColor(com.delivery.tracker.R.color.text_secondary)
         )
         binding.etTdsAmount.text?.clear()
+    }
+
+    private fun showEditFuelDialog(entry: FuelEntry) {
+        val ctx = requireContext()
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+        }
+        val etOdo = android.widget.EditText(ctx).apply {
+            hint = "Odometer (km)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(entry.odometerReading.toInt().toString())
+        }
+        val etPrice = android.widget.EditText(ctx).apply {
+            hint = "Price per Litre (₹)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(entry.fuelPricePerLitre.toString())
+        }
+        val etAmount = android.widget.EditText(ctx).apply {
+            hint = "Amount Spent (₹)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(entry.amountSpent.toInt().toString())
+        }
+        layout.addView(etOdo)
+        layout.addView(etPrice)
+        layout.addView(etAmount)
+
+        AlertDialog.Builder(ctx)
+            .setTitle("✏️ Edit Fuel Entry")
+            .setView(layout)
+            .setPositiveButton("Save") { _, _ ->
+                val odo    = etOdo.text.toString().toDoubleOrNull() ?: entry.odometerReading
+                val price  = etPrice.text.toString().toDoubleOrNull() ?: entry.fuelPricePerLitre
+                val amount = etAmount.text.toString().toDoubleOrNull() ?: entry.amountSpent
+                viewModel.updateFuelEntry(entry.copy(
+                    odometerReading   = odo,
+                    fuelPricePerLitre = price,
+                    amountSpent       = amount
+                ))
+                Toast.makeText(ctx, "Fuel entry updated ✅", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun showEditServiceDialog(entry: ServiceEntry) {
+        val ctx = requireContext()
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 8)
+        }
+        val etOdo = android.widget.EditText(ctx).apply {
+            hint = "Odometer (km)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(entry.odometerReading.toInt().toString())
+        }
+        val etAmount = android.widget.EditText(ctx).apply {
+            hint = "Amount Spent (₹)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            setText(entry.amountSpent.toInt().toString())
+        }
+        val etDetails = android.widget.EditText(ctx).apply {
+            hint = "Details (e.g. Oil change)"
+            setText(entry.details)
+        }
+        layout.addView(etOdo)
+        layout.addView(etAmount)
+        layout.addView(etDetails)
+
+        AlertDialog.Builder(ctx)
+            .setTitle("✏️ Edit Service Entry")
+            .setView(layout)
+            .setPositiveButton("Save") { _, _ ->
+                val odo     = etOdo.text.toString().toDoubleOrNull() ?: entry.odometerReading
+                val amount  = etAmount.text.toString().toDoubleOrNull() ?: entry.amountSpent
+                val details = etDetails.text.toString().trim().ifEmpty { entry.details }
+                viewModel.updateServiceEntry(entry.copy(
+                    odometerReading = odo,
+                    amountSpent     = amount,
+                    details         = details
+                ))
+                Toast.makeText(ctx, "Service entry updated ✅", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     override fun onDestroyView() {
