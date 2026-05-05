@@ -32,4 +32,13 @@ interface SessionDao {
 
     @Query("SELECT MAX(endOdometer) FROM daily_sessions WHERE isEnded = 1 AND isRetroactive = 0")
     suspend fun getMaxEndOdometer(): Double?
+
+    @Query("""
+        SELECT SUM(endOdometer - startOdometer) 
+        FROM daily_sessions 
+        WHERE serviceCycleId = :cycleId 
+        AND isEnded = 1 
+        AND endOdometer > startOdometer
+    """)
+    suspend fun getTotalKmForCycle(cycleId: Long): Double?
 }

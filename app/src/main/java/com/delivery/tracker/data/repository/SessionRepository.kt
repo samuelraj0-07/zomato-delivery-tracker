@@ -33,4 +33,7 @@ class SessionRepository @Inject constructor(
         sessionDao.update(session)
 
     suspend fun getMaxEndOdometer(): Double? = sessionDao.getMaxEndOdometer()
+
+    suspend fun getTotalKmForCycle(cycleId: Long): Double =
+        sessionDao.getTotalKmForCycle(cycleId) ?: 0.0
 }

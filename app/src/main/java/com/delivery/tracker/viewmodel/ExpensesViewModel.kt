@@ -68,17 +68,18 @@ class ExpensesViewModel @Inject constructor(
     // REPLACE WITH:
 private fun loadCycleSummary(cycle: ServiceCycle) {
     viewModelScope.launch {
-        val trips       = tripRepo.getTripsByCycleOnce(cycle.id)
+        val trips = tripRepo.getTripsByCycleOnce(cycle.id)
         val fuelUsed    = expenseRepo.getTotalFuelForCycle(cycle.id)
         val serviceUsed = expenseRepo.getTotalServiceForCycle(cycle.id)
 
-        // For active cycles, use latest odometer from sessions instead of endOdometer
-        val currentOdo = if (cycle.isActive) {
-            sessionRepo.getMaxEndOdometer() ?: cycle.startOdometer
+        // Get actual kms ridden during this cycle from daily sessions
+        val kmRidden = if (cycle.isActive) {
+            // Active cycle: sum all sessions linked to this cycle
+            sessionRepo.getTotalKmForCycle(cycle.id)
         } else {
-            cycle.endOdometer
+            // Ended cycle: use odometer difference (reliable)
+            cycle.kmCovered
         }
-        val kmRidden = (currentOdo - cycle.startOdometer).coerceAtLeast(0.0)
 
         val fuelAllocated    = kmRidden * CycleSummary.FUEL_RATE_PER_KM
         val serviceAllocated = kmRidden * CycleSummary.SERVICE_RATE_PER_KM

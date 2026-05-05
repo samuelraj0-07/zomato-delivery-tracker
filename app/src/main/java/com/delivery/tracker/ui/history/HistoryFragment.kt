@@ -80,15 +80,8 @@ class HistoryFragment : Fragment() {
                 tvHRateScreenshot.text = FormatUtils.formatRate(summary.ratePerKmScreenshot)
                 tvHRateActual.text = if (summary.ratePerKmActual > 0)
                     FormatUtils.formatRate(summary.ratePerKmActual) else "—"
-                tvHFuel.text = if (summary.fuelActualSpent > 0)
-                    "${FormatUtils.formatMoney(summary.fuelAllocated)} est · ${FormatUtils.formatMoney(summary.fuelActualSpent)} actual"
-                else
-                    FormatUtils.formatMoney(summary.fuelAllocated)
-
-                tvHService.text = if (summary.serviceActualSpent > 0)
-                    "${FormatUtils.formatMoney(summary.serviceAllocated)} est · ${FormatUtils.formatMoney(summary.serviceActualSpent)} actual"
-                else
-                    FormatUtils.formatMoney(summary.serviceAllocated)
+                tvHFuel.text    = FormatUtils.formatMoney(summary.fuelAllocated)
+                tvHService.text = FormatUtils.formatMoney(summary.serviceAllocated)
                 tvHTds.text = FormatUtils.formatMoney(summary.totalTds)
                 tvHNet.text = FormatUtils.formatBalance(summary.netRemaining)
                 tvHNet.setTextColor(
