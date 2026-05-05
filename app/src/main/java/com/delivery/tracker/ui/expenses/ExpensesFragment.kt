@@ -56,6 +56,14 @@ class ExpensesFragment : Fragment() {
         if (!savedPrice.isNullOrEmpty()) {
             binding.etFuelPrice.setText(savedPrice)
         }
+
+        // Show last known odometer as hint so users don't enter wrong values
+        viewModel.getLastKnownOdometer { lastOdo ->
+            if (lastOdo > 0) {
+                binding.etFuelOdometer.hint    = "Last: ${lastOdo.toInt()} km"
+                binding.etServiceOdometer.hint = "Last: ${lastOdo.toInt()} km"
+            }
+        }
     }
 
     private fun setupTabListener() {
@@ -445,7 +453,7 @@ class ExpensesFragment : Fragment() {
     }
 
     private fun showWeekListForMonth(month: Int, year: Int) {
-        val weeks = getWeeksOfMonth(month, year)
+        val weeks = DateUtils.weeksOverlappingMonth(month, year)
         val labels = weeks.map { it.first }.toTypedArray()
 
         // Pre-select the week containing today if browsing current month
@@ -460,7 +468,7 @@ class ExpensesFragment : Fragment() {
             .setSingleChoiceItems(labels, defaultIdx) { dialog, which ->
                 selectedWeekLabel = weeks[which].first
                 selectedWeekStart = weeks[which].second
-                selectedWeekEnd   = DateUtils.endOfWeekInMonth(weeks[which].second)
+                selectedWeekEnd = DateUtils.endOfWeek(weeks[which].second)
                 // Update the TextView to show what was selected
                 binding.etTdsWeek.text = selectedWeekLabel
                 binding.etTdsWeek.setTextColor(
@@ -475,37 +483,7 @@ class ExpensesFragment : Fragment() {
             .show()
     }
 
-    /**
-     * Returns all Mon–Sun week ranges inside the given month,
-     * each as Triple(displayLabel, weekStartMillis).
-     */
-    private fun getWeeksOfMonth(month: Int, year: Int): List<Pair<String, Long>> {
-        val dayCal = Calendar.getInstance().apply {
-            set(year, month, 1, 12, 0, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-
-        val fmt   = SimpleDateFormat("MMM", Locale.getDefault())
-        val weeks = mutableListOf<Pair<String, Long>>()
-
-        while (dayCal.get(Calendar.MONTH) == month) {
-            val weekStart = DateUtils.startOfWeekInMonth(dayCal.timeInMillis)
-            val weekEnd   = DateUtils.endOfWeekInMonth(dayCal.timeInMillis)
-
-            val startDay  = Calendar.getInstance().apply { timeInMillis = weekStart }
-                .get(Calendar.DAY_OF_MONTH)
-            val endDay    = Calendar.getInstance().apply { timeInMillis = weekEnd }
-                .get(Calendar.DAY_OF_MONTH)
-            val monthName = fmt.format(dayCal.time)
-            val label     = "$startDay–$endDay $monthName"
-
-            if (weeks.none { it.second == weekStart }) {
-                weeks.add(Pair(label, weekStart))
-            }
-            dayCal.add(Calendar.WEEK_OF_YEAR, 1)
-        }
-        return weeks
-    }
+   
 
     private fun showNewCycleDialog() {
         val ctx = requireContext()
@@ -520,6 +498,11 @@ class ExpensesFragment : Fragment() {
                     android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
         }
         layout.addView(etStartOdo)
+
+        viewModel.getLastKnownOdometer { lastOdo ->
+            if (lastOdo > 0) etStartOdo.setText(lastOdo.toInt().toString())
+        }
+
 
         // Date picker button — defaults to today
         val selectedCal = Calendar.getInstance()

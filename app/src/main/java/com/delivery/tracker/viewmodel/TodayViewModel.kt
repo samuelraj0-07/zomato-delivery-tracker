@@ -1,6 +1,7 @@
 package com.delivery.tracker.viewmodel
 
 import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -73,11 +74,22 @@ class TodayViewModel @Inject constructor(
         }
     }
 
+    private var tripsSource: LiveData<List<Trip>>? = null
+    private val tripsObserver = Observer<List<Trip>> { trips ->
+        _todayTrips.value = trips
+        recalculateSummary(trips)
+    }
+
     private fun loadTodayTrips(sessionId: Long) {
-        tripRepo.getTripsBySession(sessionId).observeForever { trips ->
-            _todayTrips.value = trips
-            recalculateSummary(trips)
-        }
+        tripsSource?.removeObserver(tripsObserver)       // remove old session's observer
+        val liveData = tripRepo.getTripsBySession(sessionId)
+        tripsSource  = liveData
+        liveData.observeForever(tripsObserver)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        tripsSource?.removeObserver(tripsObserver)       // cleanup on VM death
     }
 
     private fun recalculateSummary(trips: List<Trip>) {

@@ -16,11 +16,7 @@ data class RestaurantStat(
     val bestHour: String
 )
 
-data class HourStat(
-    val hour: Int,         // 0-23
-    val label: String,     // "12 PM"
-    val orderCount: Int
-)
+data class HourStat(val hour: Int, val label: String, val orderCount: Int)
 
 data class AnalyticsSummary(
     val restaurantStats: List<RestaurantStat> = emptyList(),
@@ -39,82 +35,70 @@ class AnalyticsViewModel @Inject constructor(
     private val _analyticsSummary = MutableLiveData<AnalyticsSummary>()
     val analyticsSummary: LiveData<AnalyticsSummary> = _analyticsSummary
 
-    init { loadAnalytics() }
+    private val allTripsSource = tripRepo.getAllTrips()
+    private val tripsObserver  = Observer<List<Trip>> { processAnalytics(it) }
 
-    fun loadAnalytics() {
-        tripRepo.getAllTrips().observeForever { trips ->
-            processAnalytics(trips)
+    init {
+        allTripsSource.observeForever(tripsObserver)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        allTripsSource.removeObserver(tripsObserver)  // FIX: prevent leak
+    }
+
+    /** Filter to a date range; pass 0 / Long.MAX_VALUE for all-time. */
+    fun setDateRange(start: Long, end: Long) {
+        viewModelScope.launch {
+            processAnalytics(tripRepo.getTripsForRange(start, end))
         }
     }
 
     private fun processAnalytics(trips: List<Trip>) {
         viewModelScope.launch {
-            // Restaurant stats
             val byRestaurant = trips.groupBy { it.restaurantName.trim() }
-            val restaurantStats = byRestaurant.map { (name, tripList) ->
-                val hourGroups = tripList.groupBy { parseHour(it.assignedTime) }
-                val bestHour = hourGroups.maxByOrNull { it.value.size }?.key ?: 0
+            val restaurantStats = byRestaurant.map { (name, list) ->
+                val bestHour = list.groupBy { parseHour(it.assignedTime) }
+                    .maxByOrNull { it.value.size }?.key ?: 0
                 RestaurantStat(
-                    name = name,
-                    orderCount = tripList.size,
-                    avgOrderPay = tripList.sumOf { it.orderPay } / tripList.size,
-                    avgDistance = tripList.sumOf { it.screenshotDistance } / tripList.size,
-                    totalEarnings = tripList.sumOf { it.totalEarnings },
-                    bestHour = formatHour(bestHour)
+                    name          = name,
+                    orderCount    = list.size,
+                    avgOrderPay   = list.sumOf { it.orderPay } / list.size,
+                    avgDistance   = list.sumOf { it.screenshotDistance } / list.size,
+                    totalEarnings = list.sumOf { it.totalEarnings },
+                    bestHour      = formatHour(bestHour)
                 )
             }.sortedByDescending { it.orderCount }
 
-            // Hourly stats
-            val byHour = trips.groupBy { parseHour(it.assignedTime) }
-            val hourStats = (0..23).map { hour ->
-                HourStat(
-                    hour = hour,
-                    label = formatHour(hour),
-                    orderCount = byHour[hour]?.size ?: 0
-                )
+            val byHour   = trips.groupBy { parseHour(it.assignedTime) }
+            val hourStats = (0..23).map { h ->
+                HourStat(h, formatHour(h), byHour[h]?.size ?: 0)
             }
-
-            // Peak hour
-            val peakHour = hourStats.maxByOrNull { it.orderCount }
-
-            // Days worked
-            val uniqueDays = trips.map {
-                it.dateMillis / (1000 * 60 * 60 * 24)
-            }.toSet().size
+            val peakHour   = hourStats.maxByOrNull { it.orderCount }
+            val uniqueDays = trips.map { it.dateMillis / 86_400_000L }.toSet().size
 
             _analyticsSummary.value = AnalyticsSummary(
-                restaurantStats = restaurantStats,
-                hourStats = hourStats,
+                restaurantStats    = restaurantStats,
+                hourStats          = hourStats,
                 totalTripsAnalyzed = trips.size,
-                topRestaurant = restaurantStats.firstOrNull()?.name ?: "",
-                peakHour = peakHour?.label ?: "",
-                avgOrdersPerDay = if (uniqueDays > 0)
-                    trips.size.toDouble() / uniqueDays else 0.0
+                topRestaurant      = restaurantStats.firstOrNull()?.name ?: "",
+                peakHour           = peakHour?.label ?: "",
+                avgOrdersPerDay    = if (uniqueDays > 0) trips.size.toDouble() / uniqueDays else 0.0
             )
         }
     }
 
-    private fun parseHour(timeStr: String): Int {
-        return try {
-            val clean = timeStr.trim().uppercase()
-            val isPm = clean.contains("PM")
-            val isAm = clean.contains("AM")
-            val timePart = clean.replace("AM", "").replace("PM", "").trim()
-            val hour = timePart.split(":").firstOrNull()?.trim()?.toIntOrNull() ?: 0
-            when {
-                isPm && hour != 12 -> hour + 12
-                isAm && hour == 12 -> 0
-                else -> hour
-            }
-        } catch (e: Exception) { 0 }
-    }
+    private fun parseHour(timeStr: String): Int = try {
+        val clean = timeStr.trim().uppercase()
+        val isPm  = clean.contains("PM")
+        val isAm  = clean.contains("AM")
+        val h     = clean.replace("AM","").replace("PM","").trim()
+            .split(":").firstOrNull()?.trim()?.toIntOrNull() ?: 0
+        when { isPm && h != 12 -> h + 12; isAm && h == 12 -> 0; else -> h }
+    } catch (e: Exception) { 0 }
 
-    private fun formatHour(hour: Int): String {
-        return when {
-            hour == 0 -> "12 AM"
-            hour < 12 -> "$hour AM"
-            hour == 12 -> "12 PM"
-            else -> "${hour - 12} PM"
-        }
+    private fun formatHour(h: Int) = when {
+        h == 0  -> "12 AM"; h < 12 -> "$h AM"
+        h == 12 -> "12 PM"; else   -> "${h - 12} PM"
     }
 }

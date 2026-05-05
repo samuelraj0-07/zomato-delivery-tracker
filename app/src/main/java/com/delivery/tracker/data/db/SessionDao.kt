@@ -30,6 +30,6 @@ interface SessionDao {
     @Query("SELECT * FROM daily_sessions ORDER BY dateMillis DESC")
     fun getAllSessions(): LiveData<List<DailySession>>
 
-    @Query("SELECT MAX(endOdometer) FROM daily_sessions WHERE isEnded = 1")
+    @Query("SELECT MAX(endOdometer) FROM daily_sessions WHERE isEnded = 1 AND isRetroactive = 0")
     suspend fun getMaxEndOdometer(): Double?
 }

@@ -25,6 +25,8 @@ data class HistorySummary(
     val ratePerKmActual: Double = 0.0,
     val fuelAllocated: Double = 0.0,        // odometer km × ₹1.5
     val serviceAllocated: Double = 0.0,     // odometer km × ₹0.7
+    val fuelActualSpent: Double = 0.0,       
+    val serviceActualSpent: Double = 0.0,    
     val totalTds: Double = 0.0,
     val netRemaining: Double = 0.0,         // base earnings − fuel − service
     val periodLabel: String = ""
@@ -116,11 +118,12 @@ class HistoryViewModel @Inject constructor(
             val totalIncentive = trips.sumOf { it.incentivePay }
             val totalScreenDist = trips.sumOf { it.screenshotDistance }
 
-            // REPLACE WITH:
-            val tdsSpent         = if (mode == HistoryViewMode.DAY) 0.0 else expenseRepo.getTotalTds(start, end)
-            val fuelAllocated    = totalActualDist * HistorySummary.FUEL_RATE_PER_KM
-            val serviceAllocated = totalActualDist * HistorySummary.SERVICE_RATE_PER_KM
-            val netRemaining     = totalOrderPay - fuelAllocated - serviceAllocated
+            val tdsSpent           = if (mode == HistoryViewMode.DAY) 0.0 else expenseRepo.getTotalTds(start, end)
+            val fuelAllocated      = totalActualDist * HistorySummary.FUEL_RATE_PER_KM
+            val serviceAllocated   = totalActualDist * HistorySummary.SERVICE_RATE_PER_KM
+            val fuelActualSpent    = expenseRepo.getTotalFuel(start, end)       // ADD
+            val serviceActualSpent = expenseRepo.getTotalService(start, end)    // ADD
+            val netRemaining       = totalOrderPay - fuelAllocated - serviceAllocated
 
             _summary.value = HistorySummary(
                 totalTrips              = trips.size,
@@ -138,6 +141,8 @@ class HistoryViewModel @Inject constructor(
                 totalTds                = tdsSpent,
                 netRemaining            = netRemaining,
                 periodLabel             = label
+                fuelActualSpent    = fuelActualSpent,
+                serviceActualSpent = serviceActualSpent,
             )
         }
     }
@@ -226,16 +231,17 @@ class HistoryViewModel @Inject constructor(
         val existing = sessionRepo.getSessionForDate(start, end)
         if (existing != null) return existing
 
-        // No session found — create a placeholder ended session
         val id = sessionRepo.startSession(
             DailySession(
                 dateMillis    = start,
                 startOdometer = 0.0,
                 endOdometer   = 0.0,
-                isEnded       = true
+                isEnded       = true,
+                isRetroactive = true   // excluded from odometer validation
             )
         )
         return sessionRepo.getSessionForDate(start, end)
-            ?: DailySession(id = id, dateMillis = start, startOdometer = 0.0, isEnded = true)
+            ?: DailySession(id = id, dateMillis = start, startOdometer = 0.0,
+                            isEnded = true, isRetroactive = true)
     }
 }

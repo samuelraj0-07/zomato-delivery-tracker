@@ -24,6 +24,9 @@ interface ExpenseDao {
     @Query("SELECT SUM(amountSpent) FROM fuel_entries WHERE dateMillis BETWEEN :start AND :end")
     suspend fun getTotalFuel(start: Long, end: Long): Double?
 
+    @Query("SELECT SUM(amountSpent) FROM service_entries WHERE dateMillis BETWEEN :start AND :end")
+    suspend fun getTotalService(start: Long, end: Long): Double?
+
     @Query("SELECT * FROM service_entries ORDER BY dateMillis DESC")
     fun getAllService(): LiveData<List<ServiceEntry>>
 
@@ -59,6 +62,6 @@ interface ExpenseDao {
     @Query("SELECT * FROM fuel_entries ORDER BY dateMillis DESC")
     fun getAllFuel(): LiveData<List<FuelEntry>>
 
-    @Query("SELECT SUM(amount) FROM tds_entries WHERE weekStartMillis >= :start AND weekEndMillis <= :end")
+    @Query("SELECT SUM(amount) FROM tds_entries WHERE weekStartMillis < :end AND weekEndMillis > :start")
     suspend fun getTotalTds(start: Long, end: Long): Double?
 }

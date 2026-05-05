@@ -24,6 +24,9 @@ interface TripDao {
     @Query("SELECT * FROM trips WHERE serviceCycleId = :cycleId ORDER BY dateMillis ASC")
     fun getTripsByCycle(cycleId: Long): LiveData<List<Trip>>
 
+    @Query("SELECT * FROM trips WHERE servicecycleId = :cycleId ORDER BY dateMillis ASC")
+    suspend fun getTripsByCycleOnce(cycleId: Long): List<Trip>
+    
     @Query("SELECT * FROM trips WHERE dateMillis BETWEEN :startMillis AND :endMillis")
     suspend fun getTripsForRange(startMillis: Long, endMillis: Long): List<Trip>
 

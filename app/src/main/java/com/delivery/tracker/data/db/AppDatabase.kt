@@ -19,7 +19,7 @@ import com.delivery.tracker.data.model.*
         TdsEntry::class,
         ServiceCycle::class
     ],
-    version = 3,                     // bumped from 2 → 3
+    version = 4,                     // bumped from 2 → 3 → 4
     exportSchema = false
 )
 @TypeConverters(MapTypeConverter::class)   // ← register the converter
@@ -81,6 +81,14 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE daily_sessions ADD COLUMN isRetroactive INTEGER NOT NULL DEFAULT 0"
+                )
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -88,7 +96,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "delivery_tracker.db"
                 )
-                .addMigrations(MIGRATION_2_3)   // safe migration — existing data preserved
+                .addMigrations(MIGRATION_2_3, MIGRATION_3_4)   // safe migration — existing data preserved
                 .build().also { INSTANCE = it }
             }
         }

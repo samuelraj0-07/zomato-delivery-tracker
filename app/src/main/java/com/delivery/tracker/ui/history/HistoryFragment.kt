@@ -27,6 +27,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import com.delivery.tracker.data.model.DailySession
+import androidx.fragment.app.activityViewModels
+import com.delivery.tracker.viewmodel.SharedViewModel
 
 @AndroidEntryPoint
 class HistoryFragment : Fragment() {
@@ -34,6 +36,7 @@ class HistoryFragment : Fragment() {
     private var _binding: FragmentHistoryBinding? = null
     private val binding get() = _binding!!
     private val viewModel: HistoryViewModel by viewModels()
+    private val sharedViewModel: SharedViewModel by activityViewModels()
     private lateinit var tripAdapter: TripAdapter
     private var currentMillis = System.currentTimeMillis()
 
@@ -64,6 +67,10 @@ class HistoryFragment : Fragment() {
     }
 
     private fun setupObservers() {
+        sharedViewModel.selectedDateMillis.observe(viewLifecycleOwner) { millis ->
+            currentMillis = millis
+            viewModel.setSelectedDate(millis)
+        }
         viewModel.summary.observe(viewLifecycleOwner) { summary ->
             binding.apply {
                 tvPeriodLabel.text = summary.periodLabel
@@ -73,8 +80,15 @@ class HistoryFragment : Fragment() {
                 tvHRateScreenshot.text = FormatUtils.formatRate(summary.ratePerKmScreenshot)
                 tvHRateActual.text = if (summary.ratePerKmActual > 0)
                     FormatUtils.formatRate(summary.ratePerKmActual) else "—"
-                tvHFuel.text = FormatUtils.formatMoney(summary.fuelAllocated)
-                tvHService.text = FormatUtils.formatMoney(summary.serviceAllocated)
+                tvHFuel.text = if (summary.fuelActualSpent > 0)
+                    "${FormatUtils.formatMoney(summary.fuelAllocated)} est · ${FormatUtils.formatMoney(summary.fuelActualSpent)} actual"
+                else
+                    FormatUtils.formatMoney(summary.fuelAllocated)
+
+                tvHService.text = if (summary.serviceActualSpent > 0)
+                    "${FormatUtils.formatMoney(summary.serviceAllocated)} est · ${FormatUtils.formatMoney(summary.serviceActualSpent)} actual"
+                else
+                    FormatUtils.formatMoney(summary.serviceAllocated)
                 tvHTds.text = FormatUtils.formatMoney(summary.totalTds)
                 tvHNet.text = FormatUtils.formatBalance(summary.netRemaining)
                 tvHNet.setTextColor(
@@ -88,6 +102,13 @@ class HistoryFragment : Fragment() {
 
         viewModel.trips.observe(viewLifecycleOwner) { trips ->
             tripAdapter.submitList(trips)
+            if (viewModel.viewMode.value == HistoryViewMode.DAY
+                && trips.isEmpty()
+                && viewModel.daySession.value == null
+            ) {
+                binding.tvPeriodLabel.text =
+                    "${viewModel.summary.value?.periodLabel ?: ""}  ·  No rides recorded"
+            }
         }
 
         viewModel.viewMode.observe(viewLifecycleOwner) { mode ->
@@ -133,11 +154,13 @@ class HistoryFragment : Fragment() {
         binding.btnPrev.setOnClickListener {
             currentMillis = shiftDate(currentMillis, -1)
             viewModel.setSelectedDate(currentMillis)
+            sharedViewModel.setSelectedDate(currentMillis) 
         }
 
         binding.btnNext.setOnClickListener {
             currentMillis = shiftDate(currentMillis, 1)
             viewModel.setSelectedDate(currentMillis)
+            sharedViewModel.setSelectedDate(currentMillis) 
         }
 
         // ── Tap period label to jump via picker ───────────────────────────
@@ -176,6 +199,7 @@ class HistoryFragment : Fragment() {
                 }.timeInMillis
                 currentMillis = picked
                 viewModel.setSelectedDate(currentMillis)
+                sharedViewModel.setSelectedDate(currentMillis)
             },
             cal.get(Calendar.YEAR),
             cal.get(Calendar.MONTH),
@@ -187,18 +211,21 @@ class HistoryFragment : Fragment() {
 
     // ── WEEK: list all Mon–Sun week ranges in the current month ───────────
     private fun showWeekPicker() {
-        val weeks = getWeeksOfMonth(currentMillis)   // list of Pair(label, startMillis)
+        val cal = Calendar.getInstance().apply { timeInMillis = currentMillis }
+        val weeks = DateUtils.weeksOverlappingMonth(
+            cal.get(Calendar.YEAR), cal.get(Calendar.MONTH)
+        )
         val labels = weeks.map { it.first }.toTypedArray()
-
-        // Pre-select the week that contains currentMillis
-        val currentWeekStart = DateUtils.startOfWeekInMonth(currentMillis)
-        val selectedIdx = weeks.indexOfFirst { it.second == currentWeekStart }.coerceAtLeast(0)
+        val selectedIdx = weeks.indexOfFirst {
+            it.second == DateUtils.startOfWeek(currentMillis)
+        }.coerceAtLeast(0)
 
         AlertDialog.Builder(requireContext())
             .setTitle("Select week")
             .setSingleChoiceItems(labels, selectedIdx) { dialog, which ->
                 currentMillis = weeks[which].second
                 viewModel.setSelectedDate(currentMillis)
+                sharedViewModel.setSelectedDate(currentMillis)
                 dialog.dismiss()
             }
             .setNegativeButton("Cancel", null)
@@ -251,52 +278,13 @@ class HistoryFragment : Fragment() {
                 }.timeInMillis
                 currentMillis = picked
                 viewModel.setSelectedDate(currentMillis)
+                sharedViewModel.setSelectedDate(currentMillis)
             }
             .setNegativeButton("Cancel", null)
             .show()
     }
 
-    /**
-     * Returns all Mon-Sun week ranges inside the month of [millis],
-     * each as Pair(displayLabel, weekStartMillis).
-     * E.g. [("1-6 Apr", startMillis), ("7-13 Apr", startMillis), ...]
-     */
-    private fun getWeeksOfMonth(millis: Long): List<Pair<String, Long>> {
-        val cal = Calendar.getInstance().apply { timeInMillis = millis }
-        val year  = cal.get(Calendar.YEAR)
-        val month = cal.get(Calendar.MONTH)
-
-        // Start from day 1 of the month
-        val dayCal = Calendar.getInstance().apply {
-            set(year, month, 1, 12, 0, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-
-        val weeks = mutableListOf<Pair<String, Long>>()
-        val fmt   = SimpleDateFormat("MMM", Locale.getDefault())
-
-        while (dayCal.get(Calendar.MONTH) == month) {
-            val weekStart = DateUtils.startOfWeekInMonth(dayCal.timeInMillis)
-            val weekEnd   = DateUtils.endOfWeekInMonth(dayCal.timeInMillis)
-
-            val startDay = Calendar.getInstance().apply { timeInMillis = weekStart }
-                .get(Calendar.DAY_OF_MONTH)
-            val endDay   = Calendar.getInstance().apply { timeInMillis = weekEnd }
-                .get(Calendar.DAY_OF_MONTH)
-            val monthName = fmt.format(dayCal.time)
-
-            val label = "$startDay–$endDay $monthName"
-
-            // Avoid duplicates (multiple days in same week)
-            if (weeks.none { it.second == weekStart }) {
-                weeks.add(Pair(label, weekStart))
-            }
-
-            dayCal.add(Calendar.WEEK_OF_YEAR, 1)
-        }
-
-        return weeks
-    }
+    
 
     private fun shiftDate(millis: Long, direction: Int): Long {
         val cal = Calendar.getInstance().apply { timeInMillis = millis }

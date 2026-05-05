@@ -6,8 +6,8 @@ import com.delivery.tracker.data.repository.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import com.delivery.tracker.data.repository.SessionRepository
 
-// REPLACE WITH:
 data class CycleSummary(
     val cycle: ServiceCycle? = null,
     val totalEarnings: Double = 0.0,
@@ -30,7 +30,8 @@ data class CycleSummary(
 class ExpensesViewModel @Inject constructor(
     private val expenseRepo: ExpenseRepository,
     private val cycleRepo: CycleRepository,
-    private val tripRepo: TripRepository
+    private val tripRepo: TripRepository,
+    private val sessionRepo: SessionRepository
 ) : ViewModel() {
 
     val activeCycle = cycleRepo.getActiveCycle()
@@ -60,7 +61,8 @@ class ExpensesViewModel @Inject constructor(
     // REPLACE WITH:
 private fun loadCycleSummary(cycle: ServiceCycle) {
     viewModelScope.launch {
-        val trips        = tripRepo.getTripsByCycle(cycle.id).value ?: emptyList()
+        // FIX: was reading LiveData.value inside coroutine — always null
+        val trips        = tripRepo.getTripsByCycleOnce(cycle.id)
         val fuelUsed     = expenseRepo.getTotalFuelForCycle(cycle.id)
         val serviceUsed  = expenseRepo.getTotalServiceForCycle(cycle.id)
         val kmRidden         = cycle.kmCovered
@@ -178,13 +180,13 @@ private fun loadCycleSummary(cycle: ServiceCycle) {
         }
     }
 
-fun endCurrentCycle(endOdometer: Double) {
-    viewModelScope.launch {
-        cycleRepo.getActiveCycleOnce()?.let { cycle ->
-            cycleRepo.closeCycle(cycle, endOdometer)
+    fun endCurrentCycle(endOdometer: Double) {
+        viewModelScope.launch {
+            cycleRepo.getActiveCycleOnce()?.let { cycle ->
+                cycleRepo.closeCycle(cycle, endOdometer)
+            }
         }
     }
-}
 
     fun getFuelByCycle(cycleId: Long) = expenseRepo.getFuelByCycle(cycleId)
     fun getServiceByCycle(cycleId: Long) = expenseRepo.getServiceByCycle(cycleId)
@@ -198,6 +200,14 @@ fun endCurrentCycle(endOdometer: Double) {
     fun updateCycleDetails(cycle: ServiceCycle) {
         viewModelScope.launch {
             cycleRepo.updateCycleDetails(cycle)
+        }
+    }
+
+    /** Returns the highest end-odometer ever recorded, for pre-filling dialogs. */
+    fun getLastKnownOdometer(callback: (Double) -> Unit) {
+        viewModelScope.launch {
+            val maxOdo = sessionRepo.getMaxEndOdometer() ?: 0.0
+            callback(maxOdo)
         }
     }
 }

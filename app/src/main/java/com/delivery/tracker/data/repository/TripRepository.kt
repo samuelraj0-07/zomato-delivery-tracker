@@ -18,6 +18,9 @@ class TripRepository @Inject constructor(
     fun getTripsByCycle(cycleId: Long) =
         tripDao.getTripsByCycle(cycleId)
 
+    suspend fun getTripsByCycleOnce(cycleId: Long): List<Trip> =
+    tripDao.getTripsByCycleOnce(cycleId)
+
     fun getAllTrips() = tripDao.getAllTrips()
 
     suspend fun addTrip(trip: Trip) = tripDao.insert(trip)

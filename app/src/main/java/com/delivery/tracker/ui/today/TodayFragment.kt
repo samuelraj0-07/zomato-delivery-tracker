@@ -28,6 +28,8 @@ import android.widget.AutoCompleteTextView
 import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.Spinner
+import androidx.fragment.app.activityViewModels
+import com.delivery.tracker.viewmodel.SharedViewModels
 
 @AndroidEntryPoint
 class TodayFragment : Fragment() {
@@ -35,6 +37,7 @@ class TodayFragment : Fragment() {
     private var _binding: FragmentTodayBinding? = null
     private val binding get() = _binding!!
     private val viewModel: TodayViewModel by viewModels()
+    private val sharedViewModel: SharedViewModel by activityViewModels()
     private lateinit var tripAdapter: TripAdapter
 
     override fun onCreateView(
@@ -67,6 +70,9 @@ class TodayFragment : Fragment() {
     }
 
     private fun setupObservers() {
+        sharedViewModel.selectedDateMillis.observe(viewLifecycleOwner) { millis ->
+            viewModel.setSelectedDate(millis)
+        }
         // Date label — tap to change when no session is active
         viewModel.selectedDateMillis.observe(viewLifecycleOwner) { millis ->
             binding.tvDate.text = DateUtils.formatDate(millis)
@@ -110,12 +116,16 @@ class TodayFragment : Fragment() {
                     tvDate.isClickable = false
 
                     if (session.isEnded) {
-                        // Day ended — both buttons grey, fully disabled
                         setButtonTint(btnStartDay, R.color.surface_variant)
                         setButtonTint(btnEndDay,   R.color.surface_variant)
                         btnStartDay.isEnabled = false
                         btnEndDay.isEnabled   = false
-                    } else {
+                        // Show end odometer so user doesn't have to switch to History to see it
+                        if (session.endOdometer > 0) {
+                            etEndOdometer.setText(session.endOdometer.toString())
+                            etEndOdometer.isEnabled = false
+                        }
+                    }else {
                         // Day running — Start blue (locked/done), End red (action needed)
                         setButtonTint(btnStartDay, R.color.btn_locked)
                         setButtonTint(btnEndDay,   R.color.primary)
@@ -168,6 +178,7 @@ class TodayFragment : Fragment() {
                         set(year, month, day, 0, 0, 0)
                         set(Calendar.MILLISECOND, 0)
                     }.timeInMillis
+                    sharedViewModel.setSelectedDate(picked)
                     viewModel.setSelectedDate(picked)
                 },
                 cal.get(Calendar.YEAR),
