@@ -10,16 +10,22 @@ import com.delivery.tracker.data.repository.SessionRepository
 
 data class CycleSummary(
     val cycle: ServiceCycle? = null,
-    val totalEarnings: Double = 0.0,
-    val totalExtras: Double = 0.0,
+    val totalEarnings: Double = 0.0,   // base orderPay sum
+    val totalExtras: Double = 0.0,     // extras sum
+    val totalTds: Double = 0.0,        // TDS deducted this cycle
     val fuelAllocated: Double = 0.0,
     val serviceAllocated: Double = 0.0,
     val fuelUsed: Double = 0.0,
     val serviceUsed: Double = 0.0,
     val fuelRemaining: Double = 0.0,
     val serviceRemaining: Double = 0.0,
+    val kmRidden: Double = 0.0,        // actual km from sessions
     val tripCount: Int = 0
 ) {
+    // Net remaining = all earnings − fuel spent − service spent − TDS
+    val netRemaining: Double
+        get() = (totalEarnings + totalExtras) - fuelUsed - serviceUsed - totalTds
+
     companion object {
         const val FUEL_RATE_PER_KM    = 1.5
         const val SERVICE_RATE_PER_KM = 0.7
@@ -65,39 +71,47 @@ class ExpensesViewModel @Inject constructor(
         }
     }
 
-    // REPLACE WITH:
-private fun loadCycleSummary(cycle: ServiceCycle) {
-    viewModelScope.launch {
-        val trips = tripRepo.getTripsByCycleOnce(cycle.id)
-        val fuelUsed    = expenseRepo.getTotalFuelForCycle(cycle.id)
-        val serviceUsed = expenseRepo.getTotalServiceForCycle(cycle.id)
+    private fun loadCycleSummary(cycle: ServiceCycle) {
+        viewModelScope.launch {
+            val trips       = tripRepo.getTripsByCycleOnce(cycle.id)
+            val fuelUsed    = expenseRepo.getTotalFuelForCycle(cycle.id)
+            val serviceUsed = expenseRepo.getTotalServiceForCycle(cycle.id)
 
-        // Get actual kms ridden during this cycle from daily sessions
-        val kmRidden = if (cycle.isActive) {
-            // Active cycle: sum all sessions linked to this cycle
-            sessionRepo.getTotalKmForCycle(cycle.id)
-        } else {
-            // Ended cycle: use odometer difference (reliable)
-            cycle.kmCovered
+            // KM ridden: for active cycle use session sum; for ended cycle use odo diff
+            val kmRidden = if (cycle.isActive) {
+                sessionRepo.getTotalKmForCycle(cycle.id)
+            } else {
+                cycle.kmCovered
+            }
+
+            // Allocated = km ridden × rate per km (money saved from riding)
+            val fuelAllocated    = kmRidden * CycleSummary.FUEL_RATE_PER_KM
+            val serviceAllocated = kmRidden * CycleSummary.SERVICE_RATE_PER_KM
+
+            // TDS for this cycle: sum entries whose week falls within cycle date range
+            val cycleEndMillis = if (cycle.endDateMillis > 0) cycle.endDateMillis
+                                 else System.currentTimeMillis()
+            val totalTds = expenseRepo.getTotalTds(cycle.startDateMillis, cycleEndMillis)
+
+            val totalEarnings = trips.sumOf { it.orderPay }
+            val totalExtras   = trips.sumOf { it.totalExtras }
+
+            _cycleSummary.value = CycleSummary(
+                cycle            = cycle,
+                totalEarnings    = totalEarnings,
+                totalExtras      = totalExtras,
+                totalTds         = totalTds,
+                fuelAllocated    = fuelAllocated,
+                serviceAllocated = serviceAllocated,
+                fuelUsed         = fuelUsed,
+                serviceUsed      = serviceUsed,
+                fuelRemaining    = fuelAllocated - fuelUsed,
+                serviceRemaining = serviceAllocated - serviceUsed,
+                kmRidden         = kmRidden,
+                tripCount        = trips.size
+            )
         }
-
-        val fuelAllocated    = kmRidden * CycleSummary.FUEL_RATE_PER_KM
-        val serviceAllocated = kmRidden * CycleSummary.SERVICE_RATE_PER_KM
-
-        _cycleSummary.value = CycleSummary(
-            cycle            = cycle,
-            totalEarnings    = trips.sumOf { it.orderPay },
-            totalExtras      = trips.sumOf { it.totalExtras },
-            fuelAllocated    = fuelAllocated,
-            serviceAllocated = serviceAllocated,
-            fuelUsed         = fuelUsed,
-            serviceUsed      = serviceUsed,
-            fuelRemaining    = fuelAllocated - fuelUsed,
-            serviceRemaining = serviceAllocated - serviceUsed,
-            tripCount        = trips.size
-        )
     }
-}
 
     fun addFuelEntry(
         odometer: Double,
@@ -235,6 +249,8 @@ private fun loadCycleSummary(cycle: ServiceCycle) {
     }
 
     suspend fun getCycleEarnings(cycleId: Long)    = tripRepo.getTotalEarningsForCycle(cycleId)
+    suspend fun getCycleExtras(cycleId: Long)      = tripRepo.getTotalExtrasForCycle(cycleId)
     suspend fun getCycleFuelUsed(cycleId: Long)    = expenseRepo.getTotalFuelForCycle(cycleId)
     suspend fun getCycleServiceUsed(cycleId: Long) = expenseRepo.getTotalServiceForCycle(cycleId)
+    suspend fun getCycleKmRidden(cycleId: Long)    = sessionRepo.getTotalKmForCycle(cycleId)
 }

@@ -38,4 +38,7 @@ class TripRepository @Inject constructor(
 
     suspend fun getTotalEarningsForCycle(cycleId: Long): Double =
         tripDao.getTotalEarningsForCycle(cycleId) ?: 0.0
+
+    suspend fun getTotalExtrasForCycle(cycleId: Long): Double =
+        tripDao.getTripsByCycleForExtras(cycleId).sumOf { it.totalExtras }
 }

@@ -86,39 +86,54 @@ class ExpensesFragment : Fragment() {
 
     private fun setupObservers() {
         viewModel.cycleSummary.observe(viewLifecycleOwner) { summary ->
-        val cycle = summary.cycle ?: return@observe
-        val fmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
-        binding.apply {
-            // Show start odometer, km run so far, start date
-            tvCycleProgress.text =
-                "Started: ${cycle.startOdometer.toInt()} km  |  " +
-                "Run: ${cycle.kmCovered.toInt()} km  |  " +
-                "From: ${fmt.format(java.util.Date(cycle.startDateMillis))}"
-            pbCycle.visibility = View.GONE
-            tvCycleEarnings.text = FormatUtils.formatMoney(summary.totalEarnings)
-            tvCycleFuelUsed.text     = FormatUtils.formatMoney(summary.fuelUsed)
-            tvCycleServiceUsed.text  = FormatUtils.formatMoney(summary.serviceUsed)
+            val cycle = summary.cycle ?: return@observe
+            val fmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+            binding.apply {
+                // Use kmRidden from summary (session-based for active cycle, odo-diff for ended)
+                tvCycleProgress.text =
+                    "Started: ${cycle.startOdometer.toInt()} km  |  " +
+                    "Run: ${summary.kmRidden.toInt()} km  |  " +
+                    "From: ${fmt.format(java.util.Date(cycle.startDateMillis))}"
+                pbCycle.visibility = View.GONE
 
-            tvCycleFuelRemaining.text = FormatUtils.formatBalance(summary.fuelRemaining)
-            tvCycleFuelRemaining.setTextColor(
-                requireContext().getColor(
-                    if (summary.fuelRemaining >= 0) com.delivery.tracker.R.color.positive
-                    else com.delivery.tracker.R.color.negative
+                // Allocated column — km × rate per km (money saved from riding)
+                tvCycleFuelAllocated.text    = FormatUtils.formatMoney(summary.fuelAllocated)
+                tvCycleServiceAllocated.text = FormatUtils.formatMoney(summary.serviceAllocated)
+
+                // Used column — actual money spent in Expenses tab
+                tvCycleFuelUsed.text    = FormatUtils.formatMoney(summary.fuelUsed)
+                tvCycleServiceUsed.text = FormatUtils.formatMoney(summary.serviceUsed)
+
+                // Remaining column — allocated minus used
+                tvCycleFuelRemaining.text = FormatUtils.formatBalance(summary.fuelRemaining)
+                tvCycleFuelRemaining.setTextColor(
+                    requireContext().getColor(
+                        if (summary.fuelRemaining >= 0) com.delivery.tracker.R.color.positive
+                        else com.delivery.tracker.R.color.negative
+                    )
                 )
-            )
-
-            tvCycleServiceRemaining.text = FormatUtils.formatBalance(summary.serviceRemaining)
-            tvCycleServiceRemaining.setTextColor(
-                requireContext().getColor(
-                    if (summary.serviceRemaining >= 0) com.delivery.tracker.R.color.positive
-                    else com.delivery.tracker.R.color.negative
+                tvCycleServiceRemaining.text = FormatUtils.formatBalance(summary.serviceRemaining)
+                tvCycleServiceRemaining.setTextColor(
+                    requireContext().getColor(
+                        if (summary.serviceRemaining >= 0) com.delivery.tracker.R.color.positive
+                        else com.delivery.tracker.R.color.negative
+                    )
                 )
-            )
 
-            // Show End Cycle button only if cycle is active
-            btnEndCycle.visibility = if (cycle.isActive) View.VISIBLE else View.GONE
+                // Earnings row = Net Remaining after all deductions
+                // (base pay + extras) − fuel spent − service spent − TDS
+                tvCycleEarnings.text = FormatUtils.formatBalance(summary.netRemaining)
+                tvCycleEarnings.setTextColor(
+                    requireContext().getColor(
+                        if (summary.netRemaining >= 0) com.delivery.tracker.R.color.positive
+                        else com.delivery.tracker.R.color.negative
+                    )
+                )
+
+                // Show End Cycle button only if cycle is active
+                btnEndCycle.visibility = if (cycle.isActive) View.VISIBLE else View.GONE
+            }
         }
-    }
 
         viewModel.fuelSaved.observe(viewLifecycleOwner) {
             Toast.makeText(requireContext(), "Fuel entry saved ✅", Toast.LENGTH_SHORT).show()
@@ -664,16 +679,22 @@ class ExpensesFragment : Fragment() {
             // Async fetch earnings + fuel/service per cycle
             viewLifecycleOwner.lifecycleScope.launch {
                 val earnings    = viewModel.getCycleEarnings(cycle.id)
+                val extras      = viewModel.getCycleExtras(cycle.id)
                 val fuelUsed    = viewModel.getCycleFuelUsed(cycle.id)
                 val serviceUsed = viewModel.getCycleServiceUsed(cycle.id)
-                val fuelAlloc   = cycle.kmCovered * CycleSummary.FUEL_RATE_PER_KM
-                val svcAlloc    = cycle.kmCovered * CycleSummary.SERVICE_RATE_PER_KM
+                // Use session-based km for active cycle; odo-diff for ended
+                val kmForCalc   = if (cycle.isActive) viewModel.getCycleKmRidden(cycle.id)
+                                  else cycle.kmCovered
+                val fuelAlloc   = kmForCalc * CycleSummary.FUEL_RATE_PER_KM
+                val svcAlloc    = kmForCalc * CycleSummary.SERVICE_RATE_PER_KM
                 val fuelRem     = fuelAlloc - fuelUsed
                 val svcRem      = svcAlloc - serviceUsed
-                val fuelSign    = if (fuelRem.toDouble() >= 0.0) "✅" else "⚠️"
-                val svcSign     = if (svcRem.toDouble() >= 0.0) "✅" else "⚠️"
+                val netRem      = (earnings + extras) - fuelUsed - serviceUsed
+                val fuelSign    = if (fuelRem >= 0.0) "✅" else "⚠️"
+                val svcSign     = if (svcRem >= 0.0) "✅" else "⚠️"
+                val netSign     = if (netRem >= 0.0) "✅" else "⚠️"
                 detailTv.text =
-                    "Earned: ₹${String.format("%.0f", earnings)}  |  " +
+                    "Net remaining: $netSign ₹${String.format("%.0f", netRem)}  |  " +
                     "Fuel rem: $fuelSign ₹${String.format("%.0f", fuelRem)}  |  " +
                     "Svc rem: $svcSign ₹${String.format("%.0f", svcRem)}"
             }

@@ -36,6 +36,9 @@ interface TripDao {
     @Query("SELECT SUM(orderPay) FROM trips WHERE servicecycleId = :cycleId")
     suspend fun getTotalEarningsForCycle(cycleId: Long): Double?
 
+    @Query("SELECT * FROM trips WHERE servicecycleId = :cycleId")
+    suspend fun getTripsByCycleForExtras(cycleId: Long): List<Trip>
+
     @Query("SELECT SUM(orderPay) FROM trips WHERE dateMillis BETWEEN :start AND :end")
     suspend fun getTotalOrderPay(start: Long, end: Long): Double?
 
