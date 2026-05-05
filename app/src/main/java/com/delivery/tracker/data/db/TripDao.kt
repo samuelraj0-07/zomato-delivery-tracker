@@ -33,6 +33,9 @@ interface TripDao {
     @Query("SELECT * FROM trips ORDER BY dateMillis DESC")
     fun getAllTrips(): LiveData<List<Trip>>
 
+    @Query("SELECT SUM(orderPay) FROM trips WHERE servicecycleId = :cycleId")
+    suspend fun getTotalEarningsForCycle(cycleId: Long): Double?
+
     @Query("SELECT SUM(orderPay) FROM trips WHERE dateMillis BETWEEN :start AND :end")
     suspend fun getTotalOrderPay(start: Long, end: Long): Double?
 

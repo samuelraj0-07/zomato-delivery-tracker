@@ -663,15 +663,15 @@ class ExpensesFragment : Fragment() {
 
             // Async fetch earnings + fuel/service per cycle
             viewLifecycleOwner.lifecycleScope.launch {
-                val earnings    = tripRepo.getTotalEarningsForCycle(cycle.id)
-                val fuelUsed    = expenseRepo.getTotalFuelForCycle(cycle.id)
-                val serviceUsed = expenseRepo.getTotalServiceForCycle(cycle.id)
+                val earnings    = viewModel.getCycleEarnings(cycle.id)
+                val fuelUsed    = viewModel.getCycleFuelUsed(cycle.id)
+                val serviceUsed = viewModel.getCycleServiceUsed(cycle.id)
                 val fuelAlloc   = cycle.kmCovered * CycleSummary.FUEL_RATE_PER_KM
                 val svcAlloc    = cycle.kmCovered * CycleSummary.SERVICE_RATE_PER_KM
                 val fuelRem     = fuelAlloc - fuelUsed
                 val svcRem      = svcAlloc - serviceUsed
-                val fuelSign    = if (fuelRem >= 0) "✅" else "⚠️"
-                val svcSign     = if (svcRem >= 0) "✅" else "⚠️"
+                val fuelSign    = if (fuelRem.toDouble() >= 0.0) "✅" else "⚠️"
+                val svcSign     = if (svcRem.toDouble() >= 0.0) "✅" else "⚠️"
                 detailTv.text =
                     "Earned: ₹${String.format("%.0f", earnings)}  |  " +
                     "Fuel rem: $fuelSign ₹${String.format("%.0f", fuelRem)}  |  " +

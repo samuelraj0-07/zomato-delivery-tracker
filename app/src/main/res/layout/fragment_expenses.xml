@@ -54,11 +54,15 @@
                             android:textStyle="bold"/>
 
                         <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_fuel_odometer"
                             android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:hint="Odometer Reading (km)"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
                             app:boxStrokeColor="@color/primary">
                             <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/et_fuel_odometer"
+                                android:layout_width="match_parent"
                                 android:layout_height="wrap_content" android:inputType="numberDecimal"
                                 android:textColor="@color/text_primary"/>
                         </com.google.android.material.textfield.TextInputLayout>
@@ -148,12 +152,16 @@
                             android:textStyle="bold"/>
 
                         <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/til_service_odometer"
                             android:layout_width="match_parent" android:layout_height="wrap_content"
+                            android:hint="Odometer Reading (km)"
                             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                             app:boxBackgroundColor="@color/surface_variant"
                             app:boxStrokeColor="@color/primary">
                             <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/et_service_odometer" android:layout_height="wrap_content" android:inputType="numberDecimal"
+                                android:id="@+id/et_service_odometer"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content" android:inputType="numberDecimal"
                                 android:textColor="@color/text_primary"/>
                         </com.google.android.material.textfield.TextInputLayout>
 
