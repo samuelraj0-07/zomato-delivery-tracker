@@ -140,9 +140,9 @@ class HistoryViewModel @Inject constructor(
                 serviceAllocated        = serviceAllocated,
                 totalTds                = tdsSpent,
                 netRemaining            = netRemaining,
-                periodLabel             = label
+                periodLabel             = label,
                 fuelActualSpent    = fuelActualSpent,
-                serviceActualSpent = serviceActualSpent,
+                serviceActualSpent = serviceActualSpent
             )
         }
     }
