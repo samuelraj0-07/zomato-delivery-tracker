@@ -506,6 +506,20 @@ class HistoryFragment : Fragment() {
             .show()
     }
 
+    /**
+     * Called by MainActivity when a horizontal swipe is detected.
+     * Moves Day→Week→Month (direction=+1) or Month→Week→Day (direction=-1).
+     * Returns true if the tab was moved, false if already at the boundary.
+     */
+    fun swipeInnerTab(direction: Int): Boolean {
+        val tab = binding.tabMode
+        val current = tab.selectedTabPosition          // 0=Day, 1=Week, 2=Month
+        val target  = current + direction
+        if (target < 0 || target >= tab.tabCount) return false
+        tab.getTabAt(target)?.select()
+        return true
+    }
+
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null

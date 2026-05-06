@@ -8,6 +8,8 @@ import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.delivery.tracker.R
 import com.delivery.tracker.databinding.ActivityMainBinding
+import com.delivery.tracker.ui.expenses.ExpensesFragment
+import com.delivery.tracker.ui.history.HistoryFragment
 import dagger.hilt.android.AndroidEntryPoint
 import kotlin.math.abs
 
@@ -57,30 +59,34 @@ class MainActivity : AppCompatActivity() {
 
                     // Ignore if swipe is more vertical than horizontal
                     if (abs(deltaY) > abs(deltaX)) return false
-
-                    // Ignore if swipe is too short or too slow
                     if (abs(deltaX) < SWIPE_MIN_DISTANCE) return false
                     if (abs(velocityX) < SWIPE_MIN_VELOCITY) return false
 
+                    // +1 = swipe left (forward), -1 = swipe right (backward)
+                    val direction = if (deltaX < 0) 1 else -1
+
+                    // ── Step 1: try inner tabs in the current fragment first ───────────
+                    val navHostFrag = supportFragmentManager
+                        .findFragmentById(R.id.nav_host_fragment) as? NavHostFragment
+                    val currentFrag = navHostFrag
+                        ?.childFragmentManager?.fragments?.firstOrNull()
+
+                    val innerConsumed = when (currentFrag) {
+                        is HistoryFragment  -> currentFrag.swipeInnerTab(direction)
+                        is ExpensesFragment -> currentFrag.swipeInnerTab(direction)
+                        else                -> false
+                    }
+                    if (innerConsumed) return true
+
+                    // ── Step 2: inner was at boundary — move main bottom-nav tab ──────
                     val currentId  = navController.currentDestination?.id ?: return false
                     val currentIdx = tabOrder.indexOf(currentId)
                     if (currentIdx == -1) return false
 
-                    val targetIdx = if (deltaX < 0) {
-                        // Swipe LEFT → go to next tab
-                        currentIdx + 1
-                    } else {
-                        // Swipe RIGHT → go to previous tab
-                        currentIdx - 1
-                    }
-
-                    // Clamp — no wrap-around, just stop at the ends
+                    val targetIdx = currentIdx + direction
                     if (targetIdx < 0 || targetIdx >= tabOrder.size) return false
 
-                    val targetId = tabOrder[targetIdx]
-
-                    // Use the same behaviour as tapping the bottom nav icon
-                    binding.bottomNav.selectedItemId = targetId
+                    binding.bottomNav.selectedItemId = tabOrder[targetIdx]
                     return true
                 }
             }

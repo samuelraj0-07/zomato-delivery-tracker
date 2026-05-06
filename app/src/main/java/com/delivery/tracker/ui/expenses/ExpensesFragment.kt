@@ -32,6 +32,7 @@ class ExpensesFragment : Fragment() {
     private var _binding: FragmentExpensesBinding? = null
     private val binding get() = _binding!!
     private val viewModel: ExpensesViewModel by viewModels()
+    private var currentTabIndex = 0   // tracks active inner tab: 0=Fuel,1=Service,2=TDS,3=Cycle
 
     // Stores the week the user picked from the dialog
     private var selectedWeekLabel: String = ""
@@ -78,6 +79,7 @@ class ExpensesFragment : Fragment() {
     }
 
     private fun showSection(index: Int) {
+        currentTabIndex = index
         binding.sectionFuel.visibility    = if (index == 0) View.VISIBLE else View.GONE
         binding.sectionService.visibility = if (index == 1) View.VISIBLE else View.GONE
         binding.sectionTds.visibility     = if (index == 2) View.VISIBLE else View.GONE
@@ -905,6 +907,20 @@ class ExpensesFragment : Fragment() {
             }
             .setNegativeButton("Cancel", null)
             .show()
+    }
+
+    /**
+     * Called by MainActivity when a horizontal swipe is detected.
+     * Moves through Fuel→Service→TDS→Cycle (direction=+1) or reverse (direction=-1).
+     * Returns true if moved, false if already at boundary.
+     */
+    fun swipeInnerTab(direction: Int): Boolean {
+        val tab     = binding.tabExpenseMode
+        val target  = currentTabIndex + direction
+        if (target < 0 || target >= tab.tabCount) return false
+        tab.getTabAt(target)?.select()
+        // showSection is called automatically via the tab listener
+        return true
     }
 
     override fun onDestroyView() {
