@@ -36,4 +36,12 @@ class SessionRepository @Inject constructor(
 
     suspend fun getTotalKmForCycle(cycleId: Long): Double =
         sessionDao.getTotalKmForCycle(cycleId) ?: 0.0
+
+    /**
+     * Retroactively stamps serviceCycleId on any sessions that have
+     * serviceCycleId=0 and whose odometer falls within this cycle's range.
+     * cycleEndOdo = 0.0 means the cycle is still active (no upper bound).
+     */
+    suspend fun linkSessionsToCycle(cycleId: Long, cycleStartOdo: Double, cycleEndOdo: Double) =
+        sessionDao.linkSessionsToCycle(cycleId, cycleStartOdo, cycleEndOdo)
 }

@@ -73,6 +73,15 @@ class ExpensesViewModel @Inject constructor(
 
     private fun loadCycleSummary(cycle: ServiceCycle) {
         viewModelScope.launch {
+            // ── Repair: stamp serviceCycleId on any sessions that were saved
+            // before the cycle existed (serviceCycleId = 0 but odo fits this cycle).
+            // cycleEndOdo = 0.0 means active cycle — no upper bound.
+            sessionRepo.linkSessionsToCycle(
+                cycleId       = cycle.id,
+                cycleStartOdo = cycle.startOdometer,
+                cycleEndOdo   = if (cycle.isActive) 0.0 else cycle.endOdometer
+            )
+
             val trips       = tripRepo.getTripsByCycleOnce(cycle.id)
             val fuelUsed    = expenseRepo.getTotalFuelForCycle(cycle.id)
             val serviceUsed = expenseRepo.getTotalServiceForCycle(cycle.id)

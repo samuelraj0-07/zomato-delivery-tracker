@@ -33,6 +33,24 @@ interface SessionDao {
     @Query("SELECT MAX(endOdometer) FROM daily_sessions WHERE isEnded = 1 AND isRetroactive = 0")
     suspend fun getMaxEndOdometer(): Double?
 
+    /**
+     * Links sessions to a cycle retroactively.
+     * Matches sessions whose startOdometer >= cycle.startOdometer
+     * AND (endOdometer <= cycle.endOdometer OR cycle is still active = endOdometer is 0).
+     * Called whenever a new cycle is started or the cycle tab is opened.
+     */
+    @Query("""
+        UPDATE daily_sessions
+        SET serviceCycleId = :cycleId
+        WHERE serviceCycleId = 0
+        AND startOdometer >= :cycleStartOdo
+        AND (:cycleEndOdo = 0.0 OR startOdometer < :cycleEndOdo)
+    """)
+    suspend fun linkSessionsToCycle(cycleId: Long, cycleStartOdo: Double, cycleEndOdo: Double)
+
+    @Query("SELECT * FROM daily_sessions WHERE serviceCycleId = 0 AND startOdometer >= :cycleStartOdo")
+    suspend fun getUnlinkedSessionsAfterOdo(cycleStartOdo: Double): List<DailySession>
+
     @Query("""
         SELECT SUM(endOdometer - startOdometer) 
         FROM daily_sessions 
