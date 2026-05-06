@@ -51,6 +51,12 @@ interface SessionDao {
     @Query("SELECT * FROM daily_sessions WHERE serviceCycleId = 0 AND startOdometer >= :cycleStartOdo")
     suspend fun getUnlinkedSessionsAfterOdo(cycleStartOdo: Double): List<DailySession>
 
+    @Delete
+    suspend fun deleteSession(session: DailySession)
+
+    @Query("DELETE FROM trips WHERE sessionId = :sessionId")
+    suspend fun deleteTripsForSession(sessionId: Long)
+
     @Query("""
         SELECT SUM(endOdometer - startOdometer) 
         FROM daily_sessions 

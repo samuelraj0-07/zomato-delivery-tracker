@@ -593,15 +593,23 @@ class ExpensesFragment : Fragment() {
         }
 
         val etEndOdo = android.widget.EditText(ctx).apply {
-            hint = "End Odometer reading (km)"
+            hint = "Current odometer reading (km)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or
                     android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
         }
+
+        val cbStartNew = android.widget.CheckBox(ctx).apply {
+            text = "Start new cycle from this odometer reading"
+            isChecked = true
+            setPadding(0, 16, 0, 0)
+        }
+
         layout.addView(etEndOdo)
+        layout.addView(cbStartNew)
 
         AlertDialog.Builder(ctx)
             .setTitle("🏁 End Service Cycle")
-            .setMessage("Enter your current odometer reading to close this cycle.")
+            .setMessage("Enter your current odometer to close this cycle.")
             .setView(layout)
             .setPositiveButton("End Cycle") { _, _ ->
                 val endOdo = etEndOdo.text.toString().toDoubleOrNull()
@@ -609,8 +617,14 @@ class ExpensesFragment : Fragment() {
                     Toast.makeText(ctx, "Enter a valid odometer reading", Toast.LENGTH_SHORT).show()
                     return@setPositiveButton
                 }
-                viewModel.endCurrentCycle(endOdo)
-                Toast.makeText(ctx, "Cycle ended ✅", Toast.LENGTH_SHORT).show()
+                if (cbStartNew.isChecked) {
+                    // End current cycle AND immediately start next one at same odo
+                    viewModel.endAndStartNewCycle(endOdo)
+                    Toast.makeText(ctx, "Cycle ended & new cycle started ✅", Toast.LENGTH_SHORT).show()
+                } else {
+                    viewModel.endCurrentCycle(endOdo)
+                    Toast.makeText(ctx, "Cycle ended ✅", Toast.LENGTH_SHORT).show()
+                }
             }
             .setNegativeButton("Cancel", null)
             .show()

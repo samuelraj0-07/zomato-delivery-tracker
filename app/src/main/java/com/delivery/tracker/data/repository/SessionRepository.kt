@@ -44,4 +44,10 @@ class SessionRepository @Inject constructor(
      */
     suspend fun linkSessionsToCycle(cycleId: Long, cycleStartOdo: Double, cycleEndOdo: Double) =
         sessionDao.linkSessionsToCycle(cycleId, cycleStartOdo, cycleEndOdo)
+
+    suspend fun deleteSession(session: com.delivery.tracker.data.model.DailySession) =
+        sessionDao.deleteSession(session)
+
+    suspend fun deleteTripsForSession(sessionId: Long) =
+        sessionDao.deleteTripsForSession(sessionId)
 }

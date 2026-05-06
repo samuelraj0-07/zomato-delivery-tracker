@@ -102,6 +102,12 @@ class HistoryFragment : Fragment() {
                 binding.tvPeriodLabel.text =
                     "${viewModel.summary.value?.periodLabel ?: ""}  ·  No rides recorded"
             }
+            // Refresh app distance whenever trips change
+            if (viewModel.viewMode.value == HistoryViewMode.DAY && viewModel.daySession.value != null) {
+                val appDist = viewModel.getDayAppDistance()
+                binding.tvOdoAppDistance.text = if (appDist > 0)
+                    String.format("%.1f km", appDist) else "—"
+            }
         }
 
         viewModel.viewMode.observe(viewLifecycleOwner) { mode ->
@@ -124,8 +130,14 @@ class HistoryFragment : Fragment() {
                 binding.tvOdoEnd.text = if (session.endOdometer > 0) "${session.endOdometer} km" else "—"
                 binding.tvOdoDistance.text = if (session.actualDistance > 0)
                     "${session.actualDistance} km" else "—"
+                // App distance = sum of screenshotDistance from all trips this day
+                val appDist = viewModel.getDayAppDistance()
+                binding.tvOdoAppDistance.text = if (appDist > 0)
+                    String.format("%.1f km", appDist) else "—"
+                binding.rowOdoAppDistance.visibility = View.VISIBLE
             } else {
                 binding.cardOdometer.visibility = View.GONE
+                binding.rowOdoAppDistance.visibility = View.GONE
             }
         }
     }
@@ -177,6 +189,19 @@ class HistoryFragment : Fragment() {
         binding.btnEditOdometer.setOnClickListener {
             val session = viewModel.daySession.value ?: return@setOnClickListener
             showEditOdometerDialog(session)
+        }
+
+        binding.btnDeleteDay.setOnClickListener {
+            val session = viewModel.daySession.value ?: return@setOnClickListener
+            androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("🗑️ Delete this day?")
+                .setMessage("This will permanently delete the session and ALL trips for this day. This cannot be undone.")
+                .setPositiveButton("Delete") { _, _ ->
+                    viewModel.deleteDayEntries()
+                    Toast.makeText(requireContext(), "Day deleted ✅", Toast.LENGTH_SHORT).show()
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
         }
     }
 

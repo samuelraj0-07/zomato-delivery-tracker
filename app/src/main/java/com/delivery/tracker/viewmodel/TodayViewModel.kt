@@ -63,6 +63,11 @@ class TodayViewModel @Inject constructor(
                 // Sync the displayed date to the session's actual date
                 _selectedDateMillis.value = session.dateMillis
                 loadTodayTrips(session.id)
+            } else {
+                // Session ended or no session — clear the trip list from screen
+                tripsSource?.removeObserver(tripsObserver)
+                tripsSource = null
+                _todayTrips.value = emptyList()
             }
         }
     }

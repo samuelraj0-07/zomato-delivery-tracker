@@ -212,6 +212,25 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
+    fun deleteDayEntries() {
+        viewModelScope.launch {
+            val session = _daySession.value ?: return@launch
+            sessionRepo.deleteTripsForSession(session.id)
+            sessionRepo.deleteSession(session)
+            _daySession.value = null
+            loadData()
+        }
+    }
+
+    /**
+     * Returns total screenshotDistance from all trips on the currently
+     * selected day. This is the "app distance" — sum of km shown per trip
+     * in the Zomato app, as opposed to actual odometer distance.
+     */
+    fun getDayAppDistance(): Double {
+        return trips.value?.sumOf { it.screenshotDistance } ?: 0.0
+    }
+
     fun updateSessionOdometer(session: DailySession, newStart: Double, newEnd: Double) {
         viewModelScope.launch {
             sessionRepo.updateSession(

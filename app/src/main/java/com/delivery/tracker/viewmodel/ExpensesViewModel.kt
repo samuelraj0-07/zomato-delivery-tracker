@@ -226,6 +226,25 @@ class ExpensesViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Ends the current cycle at endOdometer and immediately starts
+     * a new cycle from that same odometer reading.
+     */
+    fun endAndStartNewCycle(endOdometer: Double) {
+        viewModelScope.launch {
+            val existing = cycleRepo.getActiveCycleOnce()
+            if (existing != null) {
+                cycleRepo.closeCycle(existing, endOdometer)
+            }
+            cycleRepo.startNewCycle(
+                ServiceCycle(
+                    startOdometer   = endOdometer,
+                    startDateMillis = System.currentTimeMillis()
+                )
+            )
+        }
+    }
+
     fun getFuelByCycle(cycleId: Long) = expenseRepo.getFuelByCycle(cycleId)
     fun getServiceByCycle(cycleId: Long) = expenseRepo.getServiceByCycle(cycleId)
 
