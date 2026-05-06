@@ -15,6 +15,7 @@ import kotlin.math.abs
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var gestureDetector: GestureDetector
 
     // Tab order must match bottom_nav_menu order exactly
     private val tabOrder = listOf(
@@ -36,7 +37,7 @@ class MainActivity : AppCompatActivity() {
         binding.bottomNav.setupWithNavController(navController)
 
         // ── Swipe gesture detector ─────────────────────────────────────────
-        val gestureDetector = GestureDetector(
+        gestureDetector = GestureDetector(
             this,
             object : GestureDetector.SimpleOnGestureListener() {
 
@@ -85,14 +86,12 @@ class MainActivity : AppCompatActivity() {
             }
         )
 
-        // Attach the gesture detector to the fragment container
-        binding.navHostFragment.setOnTouchListener { v, event ->
-            if (gestureDetector.onTouchEvent(event)) {
-                true
-            } else {
-                v.performClick()
-                false
-            }
-        }
+    }
+
+    // dispatchTouchEvent intercepts ALL touches at Activity level,
+    // BEFORE any fragment or view consumes them — this is what makes swipe reliable
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        gestureDetector.onTouchEvent(event)
+        return super.dispatchTouchEvent(event)
     }
 }
