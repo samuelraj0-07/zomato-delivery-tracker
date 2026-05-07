@@ -18,6 +18,10 @@ import com.delivery.tracker.ui.history.HistoryFragment
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlin.math.abs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class MainActivity : AppCompatActivity() {
@@ -132,38 +136,42 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun performExport(uri: Uri) {
-        try {
-            val db = com.delivery.tracker.data.db.AppDatabase.getInstance(applicationContext)
-            kotlinx.coroutines.GlobalScope.launch {
+        val db = com.delivery.tracker.data.db.AppDatabase.getInstance(applicationContext)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
                 val json = com.delivery.tracker.utils.DataExporter.export(db)
                 contentResolver.openOutputStream(uri)?.use { out ->
                     out.write(json.toByteArray())
                 }
-                runOnUiThread {
+                withContext(Dispatchers.Main) {
                     Toast.makeText(this@MainActivity, "Data exported ✅", Toast.LENGTH_SHORT).show()
                 }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
-        } catch (e: Exception) {
-            Toast.makeText(this, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 
     private fun performImport(uri: Uri) {
-        try {
-            val json = contentResolver.openInputStream(uri)?.bufferedReader()?.readText() ?: return
-            val db = com.delivery.tracker.data.db.AppDatabase.getInstance(applicationContext)
-            kotlinx.coroutines.GlobalScope.launch {
+        val json = contentResolver.openInputStream(uri)?.bufferedReader()?.readText() ?: return
+        val db = com.delivery.tracker.data.db.AppDatabase.getInstance(applicationContext)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
                 val success = com.delivery.tracker.utils.DataExporter.import(db, json)
-                runOnUiThread {
+                withContext(Dispatchers.Main) {
                     if (success) {
                         Toast.makeText(this@MainActivity, "Data imported ✅ — Restart app to refresh", Toast.LENGTH_LONG).show()
                     } else {
                         Toast.makeText(this@MainActivity, "Import failed — invalid file", Toast.LENGTH_LONG).show()
                     }
                 }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@MainActivity, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
-        } catch (e: Exception) {
-            Toast.makeText(this, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
         }
     }
 

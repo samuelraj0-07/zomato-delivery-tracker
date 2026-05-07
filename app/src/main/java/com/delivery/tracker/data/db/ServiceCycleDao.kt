@@ -23,4 +23,7 @@ interface ServiceCycleDao {
 
     @Delete
     suspend fun delete(cycle: ServiceCycle)
+
+    @Query("SELECT * FROM service_cycles ORDER BY startDateMillis DESC")
+    suspend fun getAllCyclesOnce(): List<ServiceCycle>
 }

@@ -70,4 +70,10 @@ interface ExpenseDao {
 
     @Update
     suspend fun updateService(entry: ServiceEntry)
+
+    @Query("SELECT * FROM fuel_entries ORDER BY dateMillis DESC")
+    suspend fun getFuelForExport(): List<FuelEntry>
+
+    @Query("SELECT * FROM service_entries ORDER BY dateMillis DESC")
+    suspend fun getServiceForExport(): List<ServiceEntry>
 }
