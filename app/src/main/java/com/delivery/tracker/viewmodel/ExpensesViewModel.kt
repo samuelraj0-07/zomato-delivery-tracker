@@ -58,12 +58,17 @@ class ExpensesViewModel @Inject constructor(
     private val _tdsSaved = MutableLiveData<Boolean>()
     val tdsSaved: LiveData<Boolean> = _tdsSaved
 
+    val allSessions = sessionRepo.getAllSessions()
+
     init {
-        // Merge cycle + expense changes into one reactive stream
+        // Merge cycle + expense + SESSION changes into one reactive stream.
+        // Sessions drive kmRidden → fuelAllocated/serviceAllocated, so we
+        // must re-trigger loadCycleSummary whenever a session is added or updated.
         val trigger = MediatorLiveData<Unit>()
-        trigger.addSource(activeCycle) { trigger.value = Unit }
-        trigger.addSource(allFuel)    { trigger.value = Unit }
-        trigger.addSource(allService) { trigger.value = Unit }
+        trigger.addSource(activeCycle)  { trigger.value = Unit }
+        trigger.addSource(allFuel)      { trigger.value = Unit }
+        trigger.addSource(allService)   { trigger.value = Unit }
+        trigger.addSource(allSessions)  { trigger.value = Unit }   // ← key fix
 
         trigger.observeForever {
             val cycle = activeCycle.value ?: return@observeForever
@@ -125,17 +130,18 @@ class ExpensesViewModel @Inject constructor(
     fun addFuelEntry(
         odometer: Double,
         pricePerLitre: Double,
-        amountSpent: Double
+        amountSpent: Double,
+        dateMillis: Long = System.currentTimeMillis()
     ) {
         viewModelScope.launch {
             val cycle = cycleRepo.getActiveCycleOnce()
             expenseRepo.addFuelEntry(
                 FuelEntry(
-                    dateMillis = System.currentTimeMillis(),
-                    odometerReading = odometer,
+                    dateMillis        = dateMillis,
+                    odometerReading   = odometer,
                     fuelPricePerLitre = pricePerLitre,
-                    amountSpent = amountSpent,
-                    serviceCycleId = cycle?.id ?: 0L
+                    amountSpent       = amountSpent,
+                    serviceCycleId    = cycle?.id ?: 0L
                 )
             )
             _fuelSaved.value = true
@@ -145,17 +151,18 @@ class ExpensesViewModel @Inject constructor(
     fun addServiceEntry(
         odometer: Double,
         amountSpent: Double,
-        details: String
+        details: String,
+        dateMillis: Long = System.currentTimeMillis()
     ) {
         viewModelScope.launch {
             val cycle = cycleRepo.getActiveCycleOnce()
             expenseRepo.addServiceEntry(
                 ServiceEntry(
-                    dateMillis = System.currentTimeMillis(),
+                    dateMillis      = dateMillis,
                     odometerReading = odometer,
-                    amountSpent = amountSpent,
-                    details = details,
-                    serviceCycleId = cycle?.id ?: 0L
+                    amountSpent     = amountSpent,
+                    details         = details,
+                    serviceCycleId  = cycle?.id ?: 0L
                 )
             )
             _serviceSaved.value = true

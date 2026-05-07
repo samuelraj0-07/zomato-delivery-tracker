@@ -318,6 +318,65 @@ class HistoryFragment : Fragment() {
     // ── All dialog methods below are unchanged from original ──────────────
 
     private fun showAddTripDialog() {
+        val session = viewModel.daySession.value
+        // If no session exists, or session has no real odometer (retroactive/zero),
+        // ask for odometer readings first before allowing trip entry.
+        if (session == null || (session.startOdometer == 0.0 && session.endOdometer == 0.0)) {
+            showOdometerEntryFirst()
+            return
+        }
+        showTripInputOptions()
+    }
+
+    private fun showOdometerEntryFirst() {
+        val ctx = requireContext()
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+
+        val tvInfo = android.widget.TextView(ctx).apply {
+            text = "No odometer reading for this day yet. Enter odometer to link trips correctly."
+            textSize = 13f
+            setPadding(0, 0, 0, 16)
+        }
+
+        val etStart = android.widget.EditText(ctx).apply {
+            hint = "Start odometer (km)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+        val etEnd = android.widget.EditText(ctx).apply {
+            hint = "End odometer (km)  — optional if still riding"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+
+        layout.addView(tvInfo)
+        layout.addView(etStart)
+        layout.addView(etEnd)
+
+        AlertDialog.Builder(ctx)
+            .setTitle("📍 Set odometer for this day")
+            .setView(layout)
+            .setPositiveButton("Save & Add Trip") { _, _ ->
+                val startOdo = etStart.text.toString().toDoubleOrNull()
+                if (startOdo == null || startOdo <= 0) {
+                    Toast.makeText(ctx, "Start odometer is required", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val endOdo = etEnd.text.toString().toDoubleOrNull() ?: 0.0
+                viewModel.setDayOdometer(startOdo, endOdo)
+                // After saving odometer, proceed to trip entry
+                showTripInputOptions()
+            }
+            .setNegativeButton("Skip — add trip without odometer") { _, _ ->
+                showTripInputOptions()
+            }
+            .show()
+    }
+
+    private fun showTripInputOptions() {
         val options = arrayOf("📋 Paste JSON", "✏️ Enter manually")
         AlertDialog.Builder(requireContext())
             .setTitle("Add trip to ${viewModel.summary.value?.periodLabel ?: "this day"}")

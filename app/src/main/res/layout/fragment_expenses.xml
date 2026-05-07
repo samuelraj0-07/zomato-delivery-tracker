@@ -53,6 +53,16 @@
                             android:textColor="@color/text_primary" android:textSize="15sp"
                             android:textStyle="bold"/>
 
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_fuel_pick_date"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="6dp"
+                            android:text="📅 Today"
+                            android:textSize="13sp"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            app:backgroundTint="@color/surface_variant"/>
+
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/til_fuel_odometer"
                             android:layout_width="match_parent" android:layout_height="wrap_content"
@@ -150,6 +160,16 @@
                             android:layout_height="wrap_content" android:text="🔧 Add Service Entry"
                             android:textColor="@color/text_primary" android:textSize="15sp"
                             android:textStyle="bold"/>
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btn_service_pick_date"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="6dp"
+                            android:text="📅 Today"
+                            android:textSize="13sp"
+                            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                            app:backgroundTint="@color/surface_variant"/>
 
                         <com.google.android.material.textfield.TextInputLayout
                             android:id="@+id/til_service_odometer"

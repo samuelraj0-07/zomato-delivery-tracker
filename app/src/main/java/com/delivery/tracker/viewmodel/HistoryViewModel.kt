@@ -41,7 +41,8 @@ data class HistorySummary(
 class HistoryViewModel @Inject constructor(
     private val tripRepo: TripRepository,
     private val sessionRepo: SessionRepository,
-    private val expenseRepo: ExpenseRepository
+    private val expenseRepo: ExpenseRepository,
+    private val cycleRepo: CycleRepository
 ) : ViewModel() {
 
     private val _viewMode = MutableLiveData(HistoryViewMode.DAY)
@@ -208,6 +209,42 @@ class HistoryViewModel @Inject constructor(
     fun deleteTrip(trip: Trip) {
         viewModelScope.launch {
             tripRepo.deleteTrip(trip)
+            loadData()
+        }
+    }
+
+    /**
+     * Sets or updates the odometer readings for the currently selected day.
+     * Creates a session if none exists.
+     */
+    fun setDayOdometer(startOdo: Double, endOdo: Double) {
+        viewModelScope.launch {
+            val dayMillis = _selectedDateMillis.value
+                ?: DateUtils.startOfDay(System.currentTimeMillis())
+            val existing = _daySession.value
+            if (existing != null) {
+                sessionRepo.updateSession(
+                    existing.copy(
+                        startOdometer = startOdo,
+                        endOdometer   = endOdo,
+                        isEnded       = endOdo > 0
+                    )
+                )
+            } else {
+                val start = DateUtils.startOfDay(dayMillis)
+                val cycle = cycleRepo.getActiveCycleOnce()
+                val id = sessionRepo.startSession(
+                    DailySession(
+                        dateMillis     = start,
+                        startOdometer  = startOdo,
+                        endOdometer    = endOdo,
+                        isEnded        = endOdo > 0,
+                        isRetroactive  = true,
+                        serviceCycleId = cycle?.id ?: 0L
+                    )
+                )
+                _daySession.value = sessionRepo.getSessionForDate(start, DateUtils.endOfDay(dayMillis))
+            }
             loadData()
         }
     }

@@ -1,9 +1,14 @@
 package com.delivery.tracker.ui
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.view.GestureDetector
 import android.view.MotionEvent
+import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.drawerlayout.widget.DrawerLayout
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.delivery.tracker.R
@@ -11,6 +16,7 @@ import com.delivery.tracker.databinding.ActivityMainBinding
 import com.delivery.tracker.ui.expenses.ExpensesFragment
 import com.delivery.tracker.ui.history.HistoryFragment
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlin.math.abs
 
 @AndroidEntryPoint
@@ -18,6 +24,18 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var gestureDetector: GestureDetector
+
+    // ── Export/Import launchers ──────────────────────────────────────────────
+    private val exportLauncher = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri != null) performExport(uri)
+    }
+    private val importLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) performImport(uri)
+    }
 
     // Tab order must match bottom_nav_menu order exactly
     private val tabOrder = listOf(
@@ -37,6 +55,7 @@ class MainActivity : AppCompatActivity() {
         val navController = navHost.navController
 
         binding.bottomNav.setupWithNavController(navController)
+        setupDrawer()
 
         // ── Swipe gesture detector ─────────────────────────────────────────
         gestureDetector = GestureDetector(
@@ -92,6 +111,60 @@ class MainActivity : AppCompatActivity() {
             }
         )
 
+    }
+
+    private fun setupDrawer() {
+        binding.navView.setNavigationItemSelectedListener { item ->
+            when (item.itemId) {
+                R.id.nav_export -> {
+                    exportLauncher.launch("delivery_tracker_backup.json")
+                    binding.drawerLayout.closeDrawers()
+                    true
+                }
+                R.id.nav_import -> {
+                    importLauncher.launch(arrayOf("application/json", "*/*"))
+                    binding.drawerLayout.closeDrawers()
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun performExport(uri: Uri) {
+        try {
+            val db = com.delivery.tracker.data.db.AppDatabase.getInstance(applicationContext)
+            kotlinx.coroutines.GlobalScope.launch {
+                val json = com.delivery.tracker.utils.DataExporter.export(db)
+                contentResolver.openOutputStream(uri)?.use { out ->
+                    out.write(json.toByteArray())
+                }
+                runOnUiThread {
+                    Toast.makeText(this@MainActivity, "Data exported ✅", Toast.LENGTH_SHORT).show()
+                }
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Export failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun performImport(uri: Uri) {
+        try {
+            val json = contentResolver.openInputStream(uri)?.bufferedReader()?.readText() ?: return
+            val db = com.delivery.tracker.data.db.AppDatabase.getInstance(applicationContext)
+            kotlinx.coroutines.GlobalScope.launch {
+                val success = com.delivery.tracker.utils.DataExporter.import(db, json)
+                runOnUiThread {
+                    if (success) {
+                        Toast.makeText(this@MainActivity, "Data imported ✅ — Restart app to refresh", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this@MainActivity, "Import failed — invalid file", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            Toast.makeText(this, "Import failed: ${e.message}", Toast.LENGTH_LONG).show()
+        }
     }
 
     // dispatchTouchEvent intercepts ALL touches at Activity level,

@@ -33,6 +33,8 @@ class ExpensesFragment : Fragment() {
     private val binding get() = _binding!!
     private val viewModel: ExpensesViewModel by viewModels()
     private var currentTabIndex = 0   // tracks active inner tab: 0=Fuel,1=Service,2=TDS,3=Cycle
+    private var selectedFuelDateMillis    = System.currentTimeMillis()
+    private var selectedServiceDateMillis = System.currentTimeMillis()
 
     // Stores the week the user picked from the dialog
     private var selectedWeekLabel: String = ""
@@ -393,6 +395,25 @@ class ExpensesFragment : Fragment() {
     }
 
     private fun setupListeners() {
+        // ── Fuel date picker ────────────────────────────────────────────
+        updateFuelDateLabel()
+        binding.btnFuelPickDate.setOnClickListener {
+            val cal = java.util.Calendar.getInstance().apply {
+                timeInMillis = selectedFuelDateMillis
+            }
+            android.app.DatePickerDialog(
+                requireContext(),
+                { _, y, m, d ->
+                    cal.set(y, m, d)
+                    selectedFuelDateMillis = cal.timeInMillis
+                    updateFuelDateLabel()
+                },
+                cal.get(java.util.Calendar.YEAR),
+                cal.get(java.util.Calendar.MONTH),
+                cal.get(java.util.Calendar.DAY_OF_MONTH)
+            ).show()
+        }
+
         binding.btnSaveFuel.setOnClickListener {
             val odometer = binding.etFuelOdometer.text.toString().toDoubleOrNull()
             val price    = binding.etFuelPrice.text.toString().toDoubleOrNull()
@@ -410,6 +431,25 @@ class ExpensesFragment : Fragment() {
             viewModel.addFuelEntry(odometer, price, amount)
         }
 
+
+        // ── Service date picker ─────────────────────────────────────────
+        updateServiceDateLabel()
+        binding.btnServicePickDate.setOnClickListener {
+            val cal = java.util.Calendar.getInstance().apply {
+                timeInMillis = selectedServiceDateMillis
+            }
+            android.app.DatePickerDialog(
+                requireContext(),
+                { _, y, m, d ->
+                    cal.set(y, m, d)
+                    selectedServiceDateMillis = cal.timeInMillis
+                    updateServiceDateLabel()
+                },
+                cal.get(java.util.Calendar.YEAR),
+                cal.get(java.util.Calendar.MONTH),
+                cal.get(java.util.Calendar.DAY_OF_MONTH)
+            ).show()
+        }
 
         binding.btnSaveService.setOnClickListener {
             val odometer = binding.etServiceOdometer.text.toString().toDoubleOrNull()
@@ -835,9 +875,23 @@ class ExpensesFragment : Fragment() {
 
     private fun showEditFuelDialog(entry: FuelEntry) {
         val ctx = requireContext()
+        val fmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+        var editDateMillis = entry.dateMillis
         val layout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 24, 48, 8)
+        }
+        val btnDate = android.widget.Button(ctx).apply {
+            text = "📅 ${fmt.format(java.util.Date(editDateMillis))}"
+        }
+        btnDate.setOnClickListener {
+            val cal = java.util.Calendar.getInstance().apply { timeInMillis = editDateMillis }
+            android.app.DatePickerDialog(ctx, { _, y, m, d ->
+                cal.set(y, m, d)
+                editDateMillis = cal.timeInMillis
+                btnDate.text = "📅 ${fmt.format(java.util.Date(editDateMillis))}"
+            }, cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH),
+               cal.get(java.util.Calendar.DAY_OF_MONTH)).show()
         }
         val etOdo = android.widget.EditText(ctx).apply {
             hint = "Odometer (km)"
@@ -857,6 +911,7 @@ class ExpensesFragment : Fragment() {
                     android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
             setText(entry.amountSpent.toInt().toString())
         }
+        layout.addView(btnDate)
         layout.addView(etOdo)
         layout.addView(etPrice)
         layout.addView(etAmount)
@@ -869,6 +924,7 @@ class ExpensesFragment : Fragment() {
                 val price  = etPrice.text.toString().toDoubleOrNull() ?: entry.fuelPricePerLitre
                 val amount = etAmount.text.toString().toDoubleOrNull() ?: entry.amountSpent
                 viewModel.updateFuelEntry(entry.copy(
+                    dateMillis        = editDateMillis,
                     odometerReading   = odo,
                     fuelPricePerLitre = price,
                     amountSpent       = amount
@@ -881,9 +937,23 @@ class ExpensesFragment : Fragment() {
 
     private fun showEditServiceDialog(entry: ServiceEntry) {
         val ctx = requireContext()
+        val fmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+        var editDateMillis = entry.dateMillis
         val layout = LinearLayout(ctx).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(48, 24, 48, 8)
+        }
+        val btnDate = android.widget.Button(ctx).apply {
+            text = "📅 ${fmt.format(java.util.Date(editDateMillis))}"
+        }
+        btnDate.setOnClickListener {
+            val cal = java.util.Calendar.getInstance().apply { timeInMillis = editDateMillis }
+            android.app.DatePickerDialog(ctx, { _, y, m, d ->
+                cal.set(y, m, d)
+                editDateMillis = cal.timeInMillis
+                btnDate.text = "📅 ${fmt.format(java.util.Date(editDateMillis))}"
+            }, cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH),
+               cal.get(java.util.Calendar.DAY_OF_MONTH)).show()
         }
         val etOdo = android.widget.EditText(ctx).apply {
             hint = "Odometer (km)"
@@ -901,6 +971,7 @@ class ExpensesFragment : Fragment() {
             hint = "Details (e.g. Oil change)"
             setText(entry.details)
         }
+        layout.addView(btnDate)
         layout.addView(etOdo)
         layout.addView(etAmount)
         layout.addView(etDetails)
@@ -913,6 +984,7 @@ class ExpensesFragment : Fragment() {
                 val amount  = etAmount.text.toString().toDoubleOrNull() ?: entry.amountSpent
                 val details = etDetails.text.toString().trim().ifEmpty { entry.details }
                 viewModel.updateServiceEntry(entry.copy(
+                    dateMillis      = editDateMillis,
                     odometerReading = odo,
                     amountSpent     = amount,
                     details         = details
@@ -935,6 +1007,16 @@ class ExpensesFragment : Fragment() {
         tab.getTabAt(target)?.select()
         // showSection is called automatically via the tab listener
         return true
+    }
+
+    private fun updateFuelDateLabel() {
+        val fmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+        binding.btnFuelPickDate.text = "📅 ${fmt.format(java.util.Date(selectedFuelDateMillis))}"
+    }
+
+    private fun updateServiceDateLabel() {
+        val fmt = java.text.SimpleDateFormat("dd MMM yyyy", java.util.Locale.getDefault())
+        binding.btnServicePickDate.text = "📅 ${fmt.format(java.util.Date(selectedServiceDateMillis))}"
     }
 
     override fun onDestroyView() {

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group android:checkableBehavior="none">
+        <item
+            android:id="@+id/nav_export"
+            android:icon="@android:drawable/ic_menu_share"
+            android:title="📤 Export all data (JSON)"/>
+        <item
+            android:id="@+id/nav_import"
+            android:icon="@android:drawable/ic_menu_upload"
+            android:title="📥 Import data (JSON)"/>
+    </group>
+</menu>
