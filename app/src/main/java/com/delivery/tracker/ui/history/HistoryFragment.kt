@@ -318,65 +318,6 @@ class HistoryFragment : Fragment() {
     // ── All dialog methods below are unchanged from original ──────────────
 
     private fun showAddTripDialog() {
-        val session = viewModel.daySession.value
-        // If no session exists, or session has no real odometer (retroactive/zero),
-        // ask for odometer readings first before allowing trip entry.
-        if (session == null || (session.startOdometer == 0.0 && session.endOdometer == 0.0)) {
-            showOdometerEntryFirst()
-            return
-        }
-        showTripInputOptions()
-    }
-
-    private fun showOdometerEntryFirst() {
-        val ctx = requireContext()
-        val layout = LinearLayout(ctx).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 16)
-        }
-
-        val tvInfo = android.widget.TextView(ctx).apply {
-            text = "No odometer reading for this day yet. Enter odometer to link trips correctly."
-            textSize = 13f
-            setPadding(0, 0, 0, 16)
-        }
-
-        val etStart = android.widget.EditText(ctx).apply {
-            hint = "Start odometer (km)"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-        }
-        val etEnd = android.widget.EditText(ctx).apply {
-            hint = "End odometer (km)  — optional if still riding"
-            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
-                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-        }
-
-        layout.addView(tvInfo)
-        layout.addView(etStart)
-        layout.addView(etEnd)
-
-        AlertDialog.Builder(ctx)
-            .setTitle("📍 Set odometer for this day")
-            .setView(layout)
-            .setPositiveButton("Save & Add Trip") { _, _ ->
-                val startOdo = etStart.text.toString().toDoubleOrNull()
-                if (startOdo == null || startOdo <= 0) {
-                    Toast.makeText(ctx, "Start odometer is required", Toast.LENGTH_SHORT).show()
-                    return@setPositiveButton
-                }
-                val endOdo = etEnd.text.toString().toDoubleOrNull() ?: 0.0
-                viewModel.setDayOdometer(startOdo, endOdo)
-                // After saving odometer, proceed to trip entry
-                showTripInputOptions()
-            }
-            .setNegativeButton("Skip — add trip without odometer") { _, _ ->
-                showTripInputOptions()
-            }
-            .show()
-    }
-
-    private fun showTripInputOptions() {
         val options = arrayOf("📋 Paste JSON", "✏️ Enter manually")
         AlertDialog.Builder(requireContext())
             .setTitle("Add trip to ${viewModel.summary.value?.periodLabel ?: "this day"}")
@@ -441,12 +382,33 @@ class HistoryFragment : Fragment() {
         }
 
         val etRestaurant = field("Restaurant name")
-        val etTime       = field("Assigned time (e.g. 8:02 PM)")
         val etPay        = field("Order pay (₹)", numeric = true)
         val etDist       = field("Distance (km)", numeric = true)
 
-        // CHANGED: only add 4 base fields — no more hardcoded tips/surge/incentive
-        listOf(etRestaurant, etTime, etPay, etDist).forEach { layout.addView(it) }
+        // ── Time picker for assigned time ──────────────────────────────────
+        val selectedHour   = intArrayOf(java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY))
+        val selectedMinute = intArrayOf(java.util.Calendar.getInstance().get(java.util.Calendar.MINUTE))
+        fun fmtTime(h: Int, m: Int): String {
+            val ampm = if (h < 12) "AM" else "PM"
+            val h12  = if (h % 12 == 0) 12 else h % 12
+            return String.format("%d:%02d %s", h12, m, ampm)
+        }
+        val btnTimePicker = android.widget.Button(ctx).apply {
+            text = "🕐 Assigned time: ${fmtTime(selectedHour[0], selectedMinute[0])}"
+            background = null
+            setTextColor(ctx.getColor(com.delivery.tracker.R.color.primary))
+            textSize = 13f
+            setOnClickListener {
+                android.app.TimePickerDialog(ctx, { _, h, m ->
+                    selectedHour[0]   = h
+                    selectedMinute[0] = m
+                    text = "🕐 Assigned time: ${fmtTime(h, m)}"
+                }, selectedHour[0], selectedMinute[0], false).show()
+            }
+        }
+
+        listOf(etRestaurant, etPay, etDist).forEach { layout.addView(it) }
+        layout.addView(btnTimePicker)
 
         // ── Dynamic extra pays ─────────────────────────────────────────────
         val tvExtrasHeader = android.widget.TextView(ctx).apply {
@@ -520,7 +482,7 @@ class HistoryFragment : Fragment() {
             .setView(layout)
             .setPositiveButton("Add") { _, _ ->
                 val restaurant = etRestaurant.text.toString().trim()
-                val time       = etTime.text.toString().trim()
+                val time       = fmtTime(selectedHour[0], selectedMinute[0])
                 val pay        = etPay.text.toString().toDoubleOrNull() ?: 0.0
                 val dist       = etDist.text.toString().toDoubleOrNull() ?: 0.0
 
@@ -529,7 +491,6 @@ class HistoryFragment : Fragment() {
                     return@setPositiveButton
                 }
 
-                // CHANGED: collect from dynamic rows instead of hardcoded fields
                 val extras = mutableMapOf<String, Double>()
                 for (i in 0 until extraContainer.childCount) {
                     val row     = extraContainer.getChildAt(i) as? LinearLayout ?: continue
