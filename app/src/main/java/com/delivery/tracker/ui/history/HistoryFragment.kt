@@ -126,10 +126,11 @@ class HistoryFragment : Fragment() {
         viewModel.daySession.observe(viewLifecycleOwner) { session ->
             if (session != null) {
                 binding.cardOdometer.visibility = View.VISIBLE
-                binding.tvOdoStart.text = "${session.startOdometer} km"
-                binding.tvOdoEnd.text = if (session.endOdometer > 0) "${session.endOdometer} km" else "—"
+                binding.tvOdoStart.text = String.format("%.1f km", session.startOdometer)
+                binding.tvOdoEnd.text = if (session.endOdometer > 0)
+                    String.format("%.1f km", session.endOdometer) else "—"
                 binding.tvOdoDistance.text = if (session.actualDistance > 0)
-                    "${session.actualDistance} km" else "—"
+                    String.format("%.2f km", session.actualDistance) else "—"
                 // App distance = sum of screenshotDistance from all trips this day
                 val appDist = viewModel.getDayAppDistance()
                 binding.tvOdoAppDistance.text = if (appDist > 0)
@@ -318,15 +319,92 @@ class HistoryFragment : Fragment() {
     // ── All dialog methods below are unchanged from original ──────────────
 
     private fun showAddTripDialog() {
-        val options = arrayOf("📋 Paste JSON", "✏️ Enter manually")
+        val options = arrayOf("📋 Paste JSON", "✏️ Enter manually", "🎁 Add incentive")
         AlertDialog.Builder(requireContext())
-            .setTitle("Add trip to ${viewModel.summary.value?.periodLabel ?: "this day"}")
+            .setTitle("Add to ${viewModel.summary.value?.periodLabel ?: "this day"}")
             .setItems(options) { _, which ->
                 when (which) {
                     0 -> showJsonInputDialog()
                     1 -> showManualInputDialog()
+                    2 -> showAddIncentiveDialog()
                 }
             }
+            .show()
+    }
+
+    private fun showAddIncentiveDialog() {
+        val ctx = requireContext()
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 16)
+        }
+
+        val tvInfo = android.widget.TextView(ctx).apply {
+            text = "Add incentive earned for this day. This is stored as an extra pay on a trip for this day."
+            textSize = 13f
+            setPadding(0, 0, 0, 16)
+        }
+
+        // Incentive type spinner
+        val incentiveTypes = arrayOf(
+            "incentive_pay", "peak_pay", "rain_bonus",
+            "long_distance_pay", "special_event_bonus", "other"
+        )
+        val spinnerLabel = android.widget.TextView(ctx).apply {
+            text = "Incentive type"
+            textSize = 12f
+            setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
+        }
+        val spinner = android.widget.Spinner(ctx).apply {
+            adapter = android.widget.ArrayAdapter(
+                ctx,
+                android.R.layout.simple_spinner_item,
+                incentiveTypes
+            ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        }
+
+        val etAmount = android.widget.EditText(ctx).apply {
+            hint = "Amount (₹)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+        }
+
+        val etNote = android.widget.EditText(ctx).apply {
+            hint = "Note (optional — e.g. 'Diwali special')"
+        }
+
+        layout.addView(tvInfo)
+        layout.addView(spinnerLabel)
+        layout.addView(spinner)
+        layout.addView(etAmount)
+        layout.addView(etNote)
+
+        AlertDialog.Builder(ctx)
+            .setTitle("🎁 Add Incentive")
+            .setView(layout)
+            .setPositiveButton("Add") { _, _ ->
+                val amount = etAmount.text.toString().toDoubleOrNull()
+                if (amount == null || amount <= 0) {
+                    Toast.makeText(ctx, "Enter a valid amount", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                val type = spinner.selectedItem.toString()
+                val note = etNote.text.toString().trim()
+                val label = if (note.isEmpty()) type else "$type ($note)"
+                // Store incentive as a standalone trip with ₹0 order pay and
+                // the incentive as an extra pay entry
+                viewModel.addTripManual(
+                    restaurant   = "🎁 ${label}",
+                    assignedTime = java.text.SimpleDateFormat(
+                        "h:mm a", java.util.Locale.getDefault()
+                    ).format(java.util.Date()),
+                    orderPay     = 0.0,
+                    distance     = 0.0,
+                    extras       = mapOf(type to amount)
+                )
+                Toast.makeText(ctx, "Incentive ₹${amount.toInt()} added ✅", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
             .show()
     }
 

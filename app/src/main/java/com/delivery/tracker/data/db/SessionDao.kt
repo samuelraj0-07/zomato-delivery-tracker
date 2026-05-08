@@ -65,4 +65,18 @@ interface SessionDao {
         AND endOdometer > startOdometer
     """)
     suspend fun getTotalKmForCycle(cycleId: Long): Double?
+
+    /**
+     * Returns the highest endOdometer from all sessions linked to this cycle.
+     * Used for Run: calculation = maxEndOdo - cycle.startOdometer.
+     * This correctly accounts for personal riding days (no delivery sessions)
+     * because it uses the actual last-known odometer, not just delivery session sums.
+     */
+    @Query("""
+        SELECT MAX(endOdometer) FROM daily_sessions
+        WHERE serviceCycleId = :cycleId
+        AND isEnded = 1
+        AND endOdometer > 0
+    """)
+    suspend fun getMaxEndOdometerForCycle(cycleId: Long): Double?
 }

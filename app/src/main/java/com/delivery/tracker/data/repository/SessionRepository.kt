@@ -45,6 +45,9 @@ class SessionRepository @Inject constructor(
     suspend fun linkSessionsToCycle(cycleId: Long, cycleStartOdo: Double, cycleEndOdo: Double) =
         sessionDao.linkSessionsToCycle(cycleId, cycleStartOdo, cycleEndOdo)
 
+    suspend fun getMaxEndOdometerForCycle(cycleId: Long): Double =
+        sessionDao.getMaxEndOdometerForCycle(cycleId) ?: 0.0
+
     suspend fun deleteSession(session: com.delivery.tracker.data.model.DailySession) =
         sessionDao.deleteSession(session)
 

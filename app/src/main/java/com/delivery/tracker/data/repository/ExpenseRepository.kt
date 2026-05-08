@@ -36,6 +36,12 @@ class ExpenseRepository @Inject constructor(
     suspend fun getTotalFuelForCycle(cycleId: Long) =
         expenseDao.getTotalFuelForCycle(cycleId) ?: 0.0
 
+    suspend fun linkFuelToCycle(cycleId: Long, startOdo: Double, endOdo: Double) =
+        expenseDao.linkFuelToCycle(cycleId, startOdo, endOdo)
+
+    suspend fun linkServiceToCycle(cycleId: Long, startOdo: Double, endOdo: Double) =
+        expenseDao.linkServiceToCycle(cycleId, startOdo, endOdo)
+
     // Service
     fun getServiceByDateRange(start: Long, end: Long) =
         expenseDao.getServiceByDateRange(start, end)

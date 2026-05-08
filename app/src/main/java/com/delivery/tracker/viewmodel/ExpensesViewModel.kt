@@ -78,24 +78,38 @@ class ExpensesViewModel @Inject constructor(
 
     private fun loadCycleSummary(cycle: ServiceCycle) {
         viewModelScope.launch {
-            // ── Repair: stamp serviceCycleId on any sessions that were saved
-            // before the cycle existed (serviceCycleId = 0 but odo fits this cycle).
-            // cycleEndOdo = 0.0 means active cycle — no upper bound.
+            // ── Repair: stamp serviceCycleId on sessions/fuel/service entries
+            // that were saved before the cycle existed (serviceCycleId = 0).
+            // Matches by odometer range. cycleEndOdo = 0.0 = active = no upper bound.
+            val cycleEndOdo = if (cycle.isActive) 0.0 else cycle.endOdometer
             sessionRepo.linkSessionsToCycle(
                 cycleId       = cycle.id,
                 cycleStartOdo = cycle.startOdometer,
-                cycleEndOdo   = if (cycle.isActive) 0.0 else cycle.endOdometer
+                cycleEndOdo   = cycleEndOdo
+            )
+            expenseRepo.linkFuelToCycle(
+                cycleId       = cycle.id,
+                startOdo      = cycle.startOdometer,
+                endOdo        = cycleEndOdo
+            )
+            expenseRepo.linkServiceToCycle(
+                cycleId       = cycle.id,
+                startOdo      = cycle.startOdometer,
+                endOdo        = cycleEndOdo
             )
 
             val trips       = tripRepo.getTripsByCycleOnce(cycle.id)
             val fuelUsed    = expenseRepo.getTotalFuelForCycle(cycle.id)
             val serviceUsed = expenseRepo.getTotalServiceForCycle(cycle.id)
 
-            // KM ridden: for active cycle use session sum; for ended cycle use odo diff
+            // KM ridden = last known end odometer in this cycle - cycle start odometer.
+            // This correctly includes personal riding days (not just delivery sessions)
+            // because we look at the highest endOdometer across all sessions in the cycle.
             val kmRidden = if (cycle.isActive) {
-                sessionRepo.getTotalKmForCycle(cycle.id)
+                val maxEndOdo = sessionRepo.getMaxEndOdometerForCycle(cycle.id)
+                if (maxEndOdo > cycle.startOdometer) maxEndOdo - cycle.startOdometer else 0.0
             } else {
-                cycle.kmCovered
+                cycle.kmCovered   // ended cycle: reliable odo diff from close
             }
 
             // Allocated = km ridden × rate per km (money saved from riding)
