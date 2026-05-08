@@ -394,13 +394,13 @@ class HistoryFragment : Fragment() {
                 // Store incentive as a standalone trip with ₹0 order pay and
                 // the incentive as an extra pay entry
                 viewModel.addTripManual(
-                    restaurant   = "🎁 ${label}",
-                    assignedTime = java.text.SimpleDateFormat(
+                    restaurantName = "🎁 ${label}",
+                    assignedTime   = java.text.SimpleDateFormat(
                         "h:mm a", java.util.Locale.getDefault()
                     ).format(java.util.Date()),
-                    orderPay     = 0.0,
-                    distance     = 0.0,
-                    extras       = mapOf(type to amount)
+                    orderPay       = 0.0,
+                    distance       = 0.0,
+                    extraPays      = mapOf(type to amount)
                 )
                 Toast.makeText(ctx, "Incentive ₹${amount.toInt()} added ✅", Toast.LENGTH_SHORT).show()
             }
