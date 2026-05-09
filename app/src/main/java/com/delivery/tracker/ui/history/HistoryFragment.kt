@@ -27,6 +27,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import com.delivery.tracker.data.model.DailySession
+import com.delivery.tracker.data.model.Trip
 import androidx.fragment.app.activityViewModels
 import com.delivery.tracker.viewmodel.SharedViewModel
 
@@ -58,7 +59,13 @@ class HistoryFragment : Fragment() {
     private fun setupRecyclerView() {
         tripAdapter = TripAdapter(
             onDelete = { trip -> viewModel.deleteTrip(trip) },
-            getSubOrders = { _, _ -> }
+            getSubOrders = { _, _ -> },
+            // Issue 1: Edit button callback — only shown in DAY mode
+            onEdit = { trip ->
+                if (viewModel.viewMode.value == HistoryViewMode.DAY) {
+                    showEditTripDialog(trip)
+                }
+            }
         )
         binding.rvHistoryTrips.apply {
             adapter = tripAdapter
@@ -102,7 +109,6 @@ class HistoryFragment : Fragment() {
                 binding.tvPeriodLabel.text =
                     "${viewModel.summary.value?.periodLabel ?: ""}  ·  No rides recorded"
             }
-            // Refresh app distance whenever trips change
             if (viewModel.viewMode.value == HistoryViewMode.DAY && viewModel.daySession.value != null) {
                 val appDist = viewModel.getDayAppDistance()
                 binding.tvOdoAppDistance.text = if (appDist > 0)
@@ -111,10 +117,13 @@ class HistoryFragment : Fragment() {
         }
 
         viewModel.viewMode.observe(viewLifecycleOwner) { mode ->
-            binding.btnAddTripHistory.visibility =
-                if (mode == HistoryViewMode.DAY) View.VISIBLE else View.GONE
+            val isDayMode = mode == HistoryViewMode.DAY
+            binding.btnAddTripHistory.visibility = if (isDayMode) View.VISIBLE else View.GONE
+            // Show edit button on trip cards only in DAY mode
+            tripAdapter.notifyDataSetChanged()
         }
 
+        // Issue 6: tripAdded now uses SingleLiveEvent — fires only once when added
         viewModel.tripAdded.observe(viewLifecycleOwner) { count ->
             Toast.makeText(
                 requireContext(),
@@ -131,7 +140,6 @@ class HistoryFragment : Fragment() {
                     String.format("%.1f km", session.endOdometer) else "—"
                 binding.tvOdoDistance.text = if (session.actualDistance > 0)
                     String.format("%.2f km", session.actualDistance) else "—"
-                // App distance = sum of screenshotDistance from all trips this day
                 val appDist = viewModel.getDayAppDistance()
                 binding.tvOdoAppDistance.text = if (appDist > 0)
                     String.format("%.1f km", appDist) else "—"
@@ -160,16 +168,15 @@ class HistoryFragment : Fragment() {
         binding.btnPrev.setOnClickListener {
             currentMillis = shiftDate(currentMillis, -1)
             viewModel.setSelectedDate(currentMillis)
-            sharedViewModel.setSelectedDate(currentMillis) 
+            sharedViewModel.setSelectedDate(currentMillis)
         }
 
         binding.btnNext.setOnClickListener {
             currentMillis = shiftDate(currentMillis, 1)
             viewModel.setSelectedDate(currentMillis)
-            sharedViewModel.setSelectedDate(currentMillis) 
+            sharedViewModel.setSelectedDate(currentMillis)
         }
 
-        // ── Tap period label to jump via picker ───────────────────────────
         binding.tvPeriodLabel.setOnClickListener {
             when (viewModel.viewMode.value) {
                 HistoryViewMode.DAY   -> showDayPicker()
@@ -178,7 +185,6 @@ class HistoryFragment : Fragment() {
                 else                  -> showDayPicker()
             }
         }
-        // Make it obvious the label is tappable
         binding.tvPeriodLabel.isClickable = true
         binding.tvPeriodLabel.paintFlags =
             binding.tvPeriodLabel.paintFlags or android.graphics.Paint.UNDERLINE_TEXT_FLAG
@@ -206,7 +212,6 @@ class HistoryFragment : Fragment() {
         }
     }
 
-    // ── DAY: standard DatePickerDialog showing a full calendar ────────────
     private fun showDayPicker() {
         val cal = Calendar.getInstance().apply { timeInMillis = currentMillis }
         DatePickerDialog(
@@ -224,11 +229,10 @@ class HistoryFragment : Fragment() {
             cal.get(Calendar.MONTH),
             cal.get(Calendar.DAY_OF_MONTH)
         ).apply {
-            datePicker.maxDate = System.currentTimeMillis() // no future dates
+            datePicker.maxDate = System.currentTimeMillis()
         }.show()
     }
 
-    // ── WEEK: list all Mon–Sun week ranges in the current month ───────────
     private fun showWeekPicker() {
         val cal = Calendar.getInstance().apply { timeInMillis = currentMillis }
         val weeks = DateUtils.weeksOverlappingMonth(
@@ -251,18 +255,16 @@ class HistoryFragment : Fragment() {
             .show()
     }
 
-    // ── MONTH: two NumberPickers — month name + year ───────────────────────
     private fun showMonthPicker() {
         val cal = Calendar.getInstance().apply { timeInMillis = currentMillis }
         val currentYear  = cal.get(Calendar.YEAR)
-        val currentMonth = cal.get(Calendar.MONTH)  // 0-based
+        val currentMonth = cal.get(Calendar.MONTH)
 
         val monthNames = arrayOf(
             "January","February","March","April","May","June",
             "July","August","September","October","November","December"
         )
 
-        // Build a small layout with two side-by-side NumberPickers
         val layout = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity     = android.view.Gravity.CENTER
@@ -279,7 +281,7 @@ class HistoryFragment : Fragment() {
 
         val yearPicker = NumberPicker(requireContext()).apply {
             minValue = 2020
-            maxValue = currentYear          // can't go into the future
+            maxValue = currentYear
             value    = currentYear
             wrapSelectorWheel = false
         }
@@ -303,8 +305,6 @@ class HistoryFragment : Fragment() {
             .show()
     }
 
-    
-
     private fun shiftDate(millis: Long, direction: Int): Long {
         val cal = Calendar.getInstance().apply { timeInMillis = millis }
         when (viewModel.viewMode.value) {
@@ -315,8 +315,6 @@ class HistoryFragment : Fragment() {
         }
         return cal.timeInMillis
     }
-
-    // ── All dialog methods below are unchanged from original ──────────────
 
     private fun showAddTripDialog() {
         val options = arrayOf("📋 Paste JSON", "✏️ Enter manually", "🎁 Add incentive")
@@ -340,12 +338,11 @@ class HistoryFragment : Fragment() {
         }
 
         val tvInfo = android.widget.TextView(ctx).apply {
-            text = "Add incentive earned for this day. This is stored as an extra pay on a trip for this day."
+            text = "Add incentive earned for this day. This is stored separately and excluded from restaurant analytics."
             textSize = 13f
             setPadding(0, 0, 0, 16)
         }
 
-        // Incentive type spinner
         val incentiveTypes = arrayOf(
             "incentive_pay", "peak_pay", "rain_bonus",
             "long_distance_pay", "special_event_bonus", "other"
@@ -391,16 +388,16 @@ class HistoryFragment : Fragment() {
                 val type = spinner.selectedItem.toString()
                 val note = etNote.text.toString().trim()
                 val label = if (note.isEmpty()) type else "$type ($note)"
-                // Store incentive as a standalone trip with ₹0 order pay and
-                // the incentive as an extra pay entry
+                // Issue 7: Use INCENTIVE_PREFIX so analytics can filter it out
                 viewModel.addTripManual(
-                    restaurantName = "🎁 ${label}",
+                    restaurantName = "🎁 $label",
                     assignedTime   = java.text.SimpleDateFormat(
                         "h:mm a", java.util.Locale.getDefault()
                     ).format(java.util.Date()),
                     orderPay       = 0.0,
                     distance       = 0.0,
-                    extraPays      = mapOf(type to amount)
+                    extraPays      = mapOf(type to amount),
+                    isIncentive    = true
                 )
                 Toast.makeText(ctx, "Incentive ₹${amount.toInt()} added ✅", Toast.LENGTH_SHORT).show()
             }
@@ -463,7 +460,6 @@ class HistoryFragment : Fragment() {
         val etPay        = field("Order pay (₹)", numeric = true)
         val etDist       = field("Distance (km)", numeric = true)
 
-        // ── Time picker for assigned time ──────────────────────────────────
         val selectedHour   = intArrayOf(java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY))
         val selectedMinute = intArrayOf(java.util.Calendar.getInstance().get(java.util.Calendar.MINUTE))
         fun fmtTime(h: Int, m: Int): String {
@@ -488,7 +484,6 @@ class HistoryFragment : Fragment() {
         listOf(etRestaurant, etPay, etDist).forEach { layout.addView(it) }
         layout.addView(btnTimePicker)
 
-        // ── Dynamic extra pays ─────────────────────────────────────────────
         val tvExtrasHeader = android.widget.TextView(ctx).apply {
             text = "Extra Pays"
             textSize = 12f
@@ -539,7 +534,6 @@ class HistoryFragment : Fragment() {
             extraContainer.addView(row)
         }
 
-        // ── ₹/km live preview ─────────────────────────────────────────────
         val tvPreview = android.widget.TextView(ctx).apply {
             text = "₹/km: —"
             setTextColor(ctx.getColor(com.delivery.tracker.R.color.warning))
@@ -580,6 +574,154 @@ class HistoryFragment : Fragment() {
                 }
 
                 viewModel.addTripManual(restaurant, time, pay, dist, extras)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    // Issue 1: Edit trip dialog — pre-filled with existing trip data
+    private fun showEditTripDialog(trip: Trip) {
+        val ctx = requireContext()
+        val layout = LinearLayout(ctx).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 24, 48, 24)
+        }
+
+        fun field(hint: String, value: String, numeric: Boolean = false) = EditText(ctx).apply {
+            this.hint = hint
+            setText(value)
+            if (numeric) inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                    android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+            layoutParams = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            ).apply { bottomMargin = 8 }
+        }
+
+        val isIncentive = trip.restaurantName.startsWith("🎁")
+        val etRestaurant = field("Restaurant name", trip.restaurantName)
+        val etPay        = field("Order pay (₹)", if (trip.orderPay > 0) trip.orderPay.toString() else "", numeric = true)
+        val etDist       = field("Distance (km)", if (trip.screenshotDistance > 0) trip.screenshotDistance.toString() else "", numeric = true)
+
+        // Time picker
+        val timeParts = trip.assignedTime.uppercase().replace("AM","").replace("PM","").trim().split(":")
+        val isPm = trip.assignedTime.uppercase().contains("PM")
+        val h12 = timeParts.firstOrNull()?.trim()?.toIntOrNull() ?: 12
+        var initH = when {
+            isPm && h12 != 12 -> h12 + 12
+            !isPm && h12 == 12 -> 0
+            else -> h12
+        }
+        val initM = timeParts.getOrNull(1)?.trim()?.toIntOrNull() ?: 0
+        val selectedHour   = intArrayOf(initH)
+        val selectedMinute = intArrayOf(initM)
+
+        fun fmtTime(h: Int, m: Int): String {
+            val ampm = if (h < 12) "AM" else "PM"
+            val h12f = if (h % 12 == 0) 12 else h % 12
+            return String.format("%d:%02d %s", h12f, m, ampm)
+        }
+        val btnTimePicker = android.widget.Button(ctx).apply {
+            text = "🕐 Time: ${fmtTime(selectedHour[0], selectedMinute[0])}"
+            background = null
+            setTextColor(ctx.getColor(com.delivery.tracker.R.color.primary))
+            textSize = 13f
+            setOnClickListener {
+                android.app.TimePickerDialog(ctx, { _, h, m ->
+                    selectedHour[0]   = h
+                    selectedMinute[0] = m
+                    text = "🕐 Time: ${fmtTime(h, m)}"
+                }, selectedHour[0], selectedMinute[0], false).show()
+            }
+        }
+
+        if (!isIncentive) layout.addView(etRestaurant)
+        layout.addView(etPay)
+        if (!isIncentive) layout.addView(etDist)
+        layout.addView(btnTimePicker)
+
+        // Existing extra pays
+        val tvExtrasHeader = android.widget.TextView(ctx).apply {
+            text = "Extra Pays"
+            textSize = 12f
+            setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
+        }
+        val extraContainer = LinearLayout(ctx).apply { orientation = LinearLayout.VERTICAL }
+        val btnAddExtra = android.widget.Button(ctx).apply {
+            text = "+ Add Extra Pay"
+            textSize = 12f
+            setTextColor(ctx.getColor(com.delivery.tracker.R.color.primary))
+            background = null
+        }
+        layout.addView(tvExtrasHeader)
+        layout.addView(extraContainer)
+        layout.addView(btnAddExtra)
+
+        val keyOptions = arrayOf(
+            "customer_tip", "surge_pay", "incentive_pay",
+            "rain_bonus", "long_distance_pay", "peak_pay", "other"
+        )
+
+        fun addExtraRow(key: String, value: Double) {
+            val row = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
+            val spinner = android.widget.Spinner(ctx).apply {
+                adapter = android.widget.ArrayAdapter(
+                    ctx, android.R.layout.simple_spinner_item, keyOptions
+                ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1.5f)
+                val idx = keyOptions.indexOf(key)
+                if (idx >= 0) setSelection(idx)
+            }
+            val etAmt = android.widget.EditText(ctx).apply {
+                hint = "₹"
+                setText(if (value > 0) value.toString() else "")
+                inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                        android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_primary))
+            }
+            val btnX = android.widget.Button(ctx).apply {
+                text = "✕"
+                background = null
+                setTextColor(ctx.getColor(com.delivery.tracker.R.color.negative))
+                setOnClickListener { extraContainer.removeView(row) }
+            }
+            row.addView(spinner); row.addView(etAmt); row.addView(btnX)
+            extraContainer.addView(row)
+        }
+
+        trip.extraPays.forEach { (k, v) -> if (v > 0) addExtraRow(k, v) }
+        btnAddExtra.setOnClickListener { addExtraRow("customer_tip", 0.0) }
+
+        AlertDialog.Builder(ctx)
+            .setTitle("✏️ Edit Trip")
+            .setView(layout)
+            .setPositiveButton("Save") { _, _ ->
+                val restaurant = if (isIncentive) trip.restaurantName
+                                 else etRestaurant.text.toString().trim()
+                val pay  = etPay.text.toString().toDoubleOrNull() ?: trip.orderPay
+                val dist = if (isIncentive) 0.0
+                           else etDist.text.toString().toDoubleOrNull() ?: trip.screenshotDistance
+                val time = fmtTime(selectedHour[0], selectedMinute[0])
+
+                val extras = mutableMapOf<String, Double>()
+                for (i in 0 until extraContainer.childCount) {
+                    val row     = extraContainer.getChildAt(i) as? LinearLayout ?: continue
+                    val spinner = row.getChildAt(0) as? android.widget.Spinner ?: continue
+                    val etAmt   = row.getChildAt(1) as? android.widget.EditText ?: continue
+                    val key     = spinner.selectedItem?.toString() ?: continue
+                    val amount  = etAmt.text.toString().toDoubleOrNull() ?: continue
+                    if (amount > 0) extras[key] = amount
+                }
+
+                viewModel.updateTrip(trip.copy(
+                    restaurantName     = restaurant,
+                    assignedTime       = time,
+                    orderPay           = pay,
+                    screenshotDistance = dist,
+                    extraPays          = extras
+                ))
+                Toast.makeText(ctx, "Trip updated ✅", Toast.LENGTH_SHORT).show()
             }
             .setNegativeButton("Cancel", null)
             .show()
@@ -629,14 +771,9 @@ class HistoryFragment : Fragment() {
             .show()
     }
 
-    /**
-     * Called by MainActivity when a horizontal swipe is detected.
-     * Moves Day→Week→Month (direction=+1) or Month→Week→Day (direction=-1).
-     * Returns true if the tab was moved, false if already at the boundary.
-     */
     fun swipeInnerTab(direction: Int): Boolean {
         val tab = binding.tabMode
-        val current = tab.selectedTabPosition          // 0=Day, 1=Week, 2=Month
+        val current = tab.selectedTabPosition
         val target  = current + direction
         if (target < 0 || target >= tab.tabCount) return false
         tab.getTabAt(target)?.select()

@@ -6,6 +6,7 @@ import com.delivery.tracker.data.model.Trip
 import com.delivery.tracker.data.repository.*
 import com.delivery.tracker.ocr.OcrResult
 import com.delivery.tracker.utils.DateUtils
+import com.delivery.tracker.utils.SingleLiveEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -23,12 +24,12 @@ data class HistorySummary(
     val totalActualDistance: Double = 0.0,
     val ratePerKmScreenshot: Double = 0.0,
     val ratePerKmActual: Double = 0.0,
-    val fuelAllocated: Double = 0.0,        // odometer km × ₹1.5
-    val serviceAllocated: Double = 0.0,     // odometer km × ₹0.7
-    val fuelActualSpent: Double = 0.0,       
-    val serviceActualSpent: Double = 0.0,    
+    val fuelAllocated: Double = 0.0,
+    val serviceAllocated: Double = 0.0,
+    val fuelActualSpent: Double = 0.0,
+    val serviceActualSpent: Double = 0.0,
     val totalTds: Double = 0.0,
-    val netRemaining: Double = 0.0,         // base earnings − fuel − service
+    val netRemaining: Double = 0.0,
     val periodLabel: String = ""
 ) {
     companion object {
@@ -57,8 +58,8 @@ class HistoryViewModel @Inject constructor(
     private val _summary = MutableLiveData<HistorySummary>()
     val summary: LiveData<HistorySummary> = _summary
 
-    /** Emits true after a retroactive trip is added so the UI can show a toast. */
-    private val _tripAdded = MutableLiveData<Int>()   // count of trips just added
+    // Issue 6: Use SingleLiveEvent so the toast only fires once, not on every re-observe
+    private val _tripAdded = SingleLiveEvent<Int>()
     val tripAdded: LiveData<Int> = _tripAdded
 
     private val _daySession = MutableLiveData<DailySession?>()
@@ -102,7 +103,6 @@ class HistoryViewModel @Inject constructor(
             val trips = tripRepo.getTripsForRange(start, end)
             _trips.value = trips
 
-            // Load session for day view
             if (mode == HistoryViewMode.DAY) {
                 _daySession.value = sessionRepo.getSessionForDate(start, end)
             } else {
@@ -112,22 +112,46 @@ class HistoryViewModel @Inject constructor(
             val sessions = sessionRepo.getSessionsForRangeOnce(start, end)
             val totalActualDist = sessions.sumOf { it.actualDistance }
 
+            // Issue 7: Exclude incentive-only trips (restaurantName starts with "🎁")
+            // from trip count and earnings, but keep their extras in totalExtras
+            val deliveryTrips = trips.filter { !it.restaurantName.startsWith("🎁") }
+
             val totalOrderPay  = trips.sumOf { it.orderPay }
             val totalExtras    = trips.sumOf { it.totalExtras }
             val totalTips      = trips.sumOf { it.tips }
             val totalSurge     = trips.sumOf { it.surgePay }
             val totalIncentive = trips.sumOf { it.incentivePay }
-            val totalScreenDist = trips.sumOf { it.screenshotDistance }
+            val totalScreenDist = deliveryTrips.sumOf { it.screenshotDistance }
 
-            val tdsSpent           = if (mode == HistoryViewMode.DAY) 0.0 else expenseRepo.getTotalTds(start, end)
-            val fuelAllocated      = totalActualDist * HistorySummary.FUEL_RATE_PER_KM
-            val serviceAllocated   = totalActualDist * HistorySummary.SERVICE_RATE_PER_KM
-            val fuelActualSpent    = expenseRepo.getTotalFuel(start, end)       // ADD
-            val serviceActualSpent = expenseRepo.getTotalService(start, end)    // ADD
-            val netRemaining       = totalOrderPay - fuelAllocated - serviceAllocated
+            val tdsSpent = if (mode == HistoryViewMode.DAY) 0.0
+                           else expenseRepo.getTotalTds(start, end)
+
+            // Issue 3: Week/Month fuel & service calculated from odometer readings
+            // Use the first session's startOdo of the period and last session's endOdo
+            val fuelAllocated: Double
+            val serviceAllocated: Double
+
+            when (mode) {
+                HistoryViewMode.DAY -> {
+                    // Day: use actual distance from session odometer as before
+                    fuelAllocated    = totalActualDist * HistorySummary.FUEL_RATE_PER_KM
+                    serviceAllocated = totalActualDist * HistorySummary.SERVICE_RATE_PER_KM
+                }
+                HistoryViewMode.WEEK, HistoryViewMode.MONTH -> {
+                    // Week/Month: use (endOdo of last session) - (startOdo of first session)
+                    // This captures all riding (personal + delivery) across the period
+                    val periodKm = calcPeriodOdometerKm(sessions)
+                    fuelAllocated    = periodKm * HistorySummary.FUEL_RATE_PER_KM
+                    serviceAllocated = periodKm * HistorySummary.SERVICE_RATE_PER_KM
+                }
+            }
+
+            val fuelActualSpent    = expenseRepo.getTotalFuel(start, end)
+            val serviceActualSpent = expenseRepo.getTotalService(start, end)
+            val netRemaining       = totalOrderPay + totalExtras - fuelAllocated - serviceAllocated
 
             _summary.value = HistorySummary(
-                totalTrips              = trips.size,
+                totalTrips              = deliveryTrips.size,
                 totalOrderPay           = totalOrderPay,
                 totalExtras             = totalExtras,
                 totalTips               = totalTips,
@@ -142,20 +166,31 @@ class HistoryViewModel @Inject constructor(
                 totalTds                = tdsSpent,
                 netRemaining            = netRemaining,
                 periodLabel             = label,
-                fuelActualSpent    = fuelActualSpent,
-                serviceActualSpent = serviceActualSpent
+                fuelActualSpent         = fuelActualSpent,
+                serviceActualSpent      = serviceActualSpent
             )
         }
     }
 
     /**
-     * Add one or more trips retroactively to the currently viewed day.
-     *
-     * Looks up the existing DailySession for that day. If none exists
-     * (e.g. the user never formally "started" that day in the app),
-     * a minimal ended session is created automatically so the trips
-     * have a valid sessionId to link to.
+     * Issue 3: Calculate km ridden in a period from session odometer readings.
+     * Uses: last session's endOdometer - first session's startOdometer.
+     * Falls back to sum of individual session distances if readings are incomplete.
      */
+    private fun calcPeriodOdometerKm(sessions: List<DailySession>): Double {
+        if (sessions.isEmpty()) return 0.0
+        val realSessions = sessions.filter { !it.isRetroactive && it.isEnded }
+        if (realSessions.isEmpty()) return sessions.sumOf { it.actualDistance }
+
+        val sortedByDate = realSessions.sortedBy { it.dateMillis }
+        val startOdo = sortedByDate.first().startOdometer
+        val endOdo   = sortedByDate.last().let {
+            if (it.endOdometer > 0) it.endOdometer else it.startOdometer
+        }
+        return if (endOdo > startOdo) endOdo - startOdo
+               else realSessions.sumOf { it.actualDistance }
+    }
+
     fun addTripsFromOcrList(results: List<OcrResult>) {
         val dayMillis = _selectedDateMillis.value ?: System.currentTimeMillis()
         viewModelScope.launch {
@@ -175,7 +210,7 @@ class HistoryViewModel @Inject constructor(
                 )
             }
             _tripAdded.value = results.size
-            loadData()   // refresh the list + summary
+            loadData()
         }
     }
 
@@ -184,7 +219,8 @@ class HistoryViewModel @Inject constructor(
         assignedTime: String,
         orderPay: Double,
         distance: Double,
-        extraPays: Map<String, Double>
+        extraPays: Map<String, Double>,
+        isIncentive: Boolean = false
     ) {
         val dayMillis = _selectedDateMillis.value ?: System.currentTimeMillis()
         viewModelScope.launch {
@@ -206,6 +242,13 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
+    fun updateTrip(trip: Trip) {
+        viewModelScope.launch {
+            tripRepo.updateTrip(trip)
+            loadData()
+        }
+    }
+
     fun deleteTrip(trip: Trip) {
         viewModelScope.launch {
             tripRepo.deleteTrip(trip)
@@ -213,10 +256,6 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Sets or updates the odometer readings for the currently selected day.
-     * Creates a session if none exists.
-     */
     fun setDayOdometer(startOdo: Double, endOdo: Double) {
         viewModelScope.launch {
             val dayMillis = _selectedDateMillis.value
@@ -233,7 +272,7 @@ class HistoryViewModel @Inject constructor(
             } else {
                 val start = DateUtils.startOfDay(dayMillis)
                 val cycle = cycleRepo.getActiveCycleOnce()
-                val id = sessionRepo.startSession(
+                sessionRepo.startSession(
                     DailySession(
                         dateMillis     = start,
                         startOdometer  = startOdo,
@@ -259,11 +298,6 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    /**
-     * Returns total screenshotDistance from all trips on the currently
-     * selected day. This is the "app distance" — sum of km shown per trip
-     * in the Zomato app, as opposed to actual odometer distance.
-     */
     fun getDayAppDistance(): Double {
         return trips.value?.sumOf { it.screenshotDistance } ?: 0.0
     }
@@ -280,7 +314,6 @@ class HistoryViewModel @Inject constructor(
         }
     }
 
-    
     private suspend fun getOrCreateSessionForDay(dayMillis: Long): DailySession {
         val start = DateUtils.startOfDay(dayMillis)
         val end   = DateUtils.endOfDay(dayMillis)
@@ -293,7 +326,7 @@ class HistoryViewModel @Inject constructor(
                 startOdometer = 0.0,
                 endOdometer   = 0.0,
                 isEnded       = true,
-                isRetroactive = true   // excluded from odometer validation
+                isRetroactive = true
             )
         )
         return sessionRepo.getSessionForDate(start, end)

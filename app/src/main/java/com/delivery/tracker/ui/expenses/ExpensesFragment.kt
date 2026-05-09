@@ -428,7 +428,8 @@ class ExpensesFragment : Fragment() {
                 .edit()
                 .putString("last_fuel_price", price.toString())
                 .apply()
-            viewModel.addFuelEntry(odometer, price, amount)
+            // Issue 5: Pass the user-selected date, not System.currentTimeMillis()
+            viewModel.addFuelEntry(odometer, price, amount, selectedFuelDateMillis)
         }
 
 
@@ -459,7 +460,8 @@ class ExpensesFragment : Fragment() {
                 Toast.makeText(requireContext(), "Fill all service fields", Toast.LENGTH_SHORT).show()
                 return@setOnClickListener
             }
-            viewModel.addServiceEntry(odometer, amount, details)
+            // Issue 5: Pass the user-selected date, not System.currentTimeMillis()
+            viewModel.addServiceEntry(odometer, amount, details, selectedServiceDateMillis)
         }
 
         // ── TDS week selector ──────────────────────────────────────────────

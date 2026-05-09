@@ -1,5 +1,6 @@
 package com.delivery.tracker.ui.today
 
+import android.app.AlertDialog
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -16,7 +17,8 @@ import com.delivery.tracker.utils.FormatUtils
 
 class TripAdapter(
     private val onDelete: (Trip) -> Unit,
-    private val getSubOrders: (Long, (List<SubOrder>) -> Unit) -> Unit
+    private val getSubOrders: (Long, (List<SubOrder>) -> Unit) -> Unit,
+    private val onEdit: ((Trip) -> Unit)? = null
 ) : ListAdapter<Trip, TripAdapter.TripViewHolder>(TripDiffCallback()) {
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TripViewHolder {
@@ -38,7 +40,14 @@ class TripAdapter(
 
         fun bind(trip: Trip) {
             binding.apply {
-                tvRestaurant.text = "🍽 ${trip.restaurantName.ifEmpty { "Unknown" }}"
+                // Issue 7: Incentive trips have restaurantName starting with "🎁 "
+                // Show them with a special label so they don't look like restaurants
+                val isIncentive = trip.restaurantName.startsWith("🎁")
+                tvRestaurant.text = if (isIncentive)
+                    trip.restaurantName   // already has "🎁 incentive_pay" label
+                else
+                    "🍽 ${trip.restaurantName.ifEmpty { "Unknown" }}"
+
                 tvTime.text = trip.assignedTime
                 tvOrderPay.text = FormatUtils.formatMoney(trip.orderPay)
                 tvDistance.text = FormatUtils.formatKm(trip.screenshotDistance)
@@ -47,14 +56,27 @@ class TripAdapter(
                 tvRatePerKm.text = if (rate > 0)
                     "📍 ${FormatUtils.formatRate(rate)}" else "📍 ₹/km: —"
 
+                // Issue 2: Tap extras badge to see breakdown in a floating dialog
                 if (trip.totalExtras > 0) {
                     tvExtrasBadge.visibility = View.VISIBLE
-                    tvExtrasBadge.text = "+${FormatUtils.formatMoney(trip.totalExtras)} extra"
+                    tvExtrasBadge.text = "+${FormatUtils.formatMoney(trip.totalExtras)} extra ▾"
+                    tvExtrasBadge.setOnClickListener {
+                        showExtrasBreakdown(trip)
+                    }
                 } else {
                     tvExtrasBadge.visibility = View.GONE
+                    tvExtrasBadge.setOnClickListener(null)
                 }
 
                 btnDeleteTrip.setOnClickListener { onDelete(trip) }
+
+                // Issue 1: Edit button — only show if onEdit callback is provided
+                if (onEdit != null) {
+                    btnEditTrip.visibility = View.VISIBLE
+                    btnEditTrip.setOnClickListener { onEdit.invoke(trip) }
+                } else {
+                    btnEditTrip.visibility = View.GONE
+                }
 
                 // Load sub-orders
                 getSubOrders(trip.id) { subOrders ->
@@ -79,6 +101,79 @@ class TripAdapter(
             }
         }
 
+        // Issue 2: Show extras breakdown in a floating AlertDialog
+        private fun showExtrasBreakdown(trip: Trip) {
+            val ctx = binding.root.context
+            val layout = LinearLayout(ctx).apply {
+                orientation = LinearLayout.VERTICAL
+                setPadding(64, 32, 64, 16)
+            }
+
+            if (trip.extraPays.isEmpty()) return
+
+            trip.extraPays.forEach { (key, value) ->
+                if (value <= 0) return@forEach
+                val row = LinearLayout(ctx).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    setPadding(0, 6, 0, 6)
+                }
+                val keyLabel = key
+                    .replace('_', ' ')
+                    .replaceFirstChar { it.uppercase() }
+
+                val tvKey = TextView(ctx).apply {
+                    text = keyLabel
+                    layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                    textSize = 14f
+                    setTextColor(ctx.getColor(R.color.text_secondary))
+                }
+                val tvVal = TextView(ctx).apply {
+                    text = FormatUtils.formatMoney(value)
+                    textSize = 14f
+                    setTextColor(ctx.getColor(R.color.positive))
+                    setTypeface(null, android.graphics.Typeface.BOLD)
+                }
+                row.addView(tvKey)
+                row.addView(tvVal)
+                layout.addView(row)
+            }
+
+            // Divider + total
+            val divider = View(ctx).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    LinearLayout.LayoutParams.MATCH_PARENT, 1
+                ).also { it.topMargin = 8; it.bottomMargin = 8 }
+                setBackgroundColor(ctx.getColor(R.color.divider))
+            }
+            val totalRow = LinearLayout(ctx).apply {
+                orientation = LinearLayout.HORIZONTAL
+                setPadding(0, 6, 0, 6)
+            }
+            val tvTotalLabel = TextView(ctx).apply {
+                text = "Total"
+                layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
+                textSize = 14f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTextColor(ctx.getColor(R.color.text_primary))
+            }
+            val tvTotalVal = TextView(ctx).apply {
+                text = FormatUtils.formatMoney(trip.totalExtras)
+                textSize = 14f
+                setTypeface(null, android.graphics.Typeface.BOLD)
+                setTextColor(ctx.getColor(R.color.positive))
+            }
+            totalRow.addView(tvTotalLabel)
+            totalRow.addView(tvTotalVal)
+            layout.addView(divider)
+            layout.addView(totalRow)
+
+            AlertDialog.Builder(ctx)
+                .setTitle("Extra Pay Breakdown")
+                .setView(layout)
+                .setPositiveButton("OK", null)
+                .show()
+        }
+
         private fun addSubOrderView(container: LinearLayout, sub: SubOrder) {
             val ctx = container.context
             val wrapper = LinearLayout(ctx).apply {
@@ -86,7 +181,6 @@ class TripAdapter(
                 setPadding(0, 6, 0, 6)
             }
 
-            // Restaurant name (if different orders have different restaurants)
             if (sub.restaurantName.isNotEmpty()) {
                 wrapper.addView(TextView(ctx).apply {
                     text = "🍽 ${sub.restaurantName}"
@@ -96,14 +190,12 @@ class TripAdapter(
                 })
             }
 
-            // Drop location
             wrapper.addView(TextView(ctx).apply {
                 text = "→ ${sub.dropLocationName}"
                 setTextColor(ctx.getColor(R.color.text_primary))
                 textSize = 13f
             })
 
-            // Distance + time detail
             wrapper.addView(TextView(ctx).apply {
                 text = buildString {
                     if (sub.pickupDistanceKm > 0)
@@ -116,7 +208,6 @@ class TripAdapter(
                 textSize = 12f
             })
 
-            // Divider between sub-orders
             val divider = View(ctx).apply {
                 layoutParams = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.MATCH_PARENT, 1

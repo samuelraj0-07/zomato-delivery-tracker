@@ -23,4 +23,7 @@ interface SubOrderDao {
 
     @Query("DELETE FROM sub_orders WHERE tripId = :tripId")
     suspend fun deleteAllForTrip(tripId: Long)
+
+    @Query("DELETE FROM sub_orders")
+    suspend fun deleteAll()
 }

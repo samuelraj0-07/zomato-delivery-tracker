@@ -1,25 +1,35 @@
-package com.delivery.tracker.data.model
+package com.delivery.tracker.data.db
 
-import androidx.room.Entity
-import androidx.room.PrimaryKey
+import androidx.lifecycle.LiveData
+import androidx.room.*
+import com.delivery.tracker.data.model.ServiceCycle
 
-@Entity(tableName = "service_cycles")
-data class ServiceCycle(
-    @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
-    val startOdometer: Double,
-    val endOdometer: Double = 0.0,      // 0 = cycle still active
-    val startDateMillis: Long,
-    val endDateMillis: Long = 0L,
-    val isActive: Boolean = true,
-    val fuelBudget: Double = 0.0,
-    val serviceBudget: Double = 0.0
-) {
-    val kmCovered: Double
-        get() = if (endOdometer > startOdometer) endOdometer - startOdometer else 0.0
+@Dao
+interface ServiceCycleDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insert(cycle: ServiceCycle): Long
 
-    // Keep this so existing code using cycleKmLimit doesn't break
-    val cycleKmLimit: Double get() = 0.0
-    val progressPercent: Int get() = 0
-    val remainingKm: Double get() = 0.0
+    @Update
+    suspend fun update(cycle: ServiceCycle)
+
+    @Query("SELECT * FROM service_cycles WHERE isActive = 1 LIMIT 1")
+    fun getActiveCycle(): LiveData<ServiceCycle?>
+
+    @Query("SELECT * FROM service_cycles WHERE isActive = 1 LIMIT 1")
+    suspend fun getActiveCycleOnce(): ServiceCycle?
+
+    @Query("SELECT * FROM service_cycles ORDER BY startDateMillis DESC")
+    fun getAllCycles(): LiveData<List<ServiceCycle>>
+
+    @Delete
+    suspend fun delete(cycle: ServiceCycle)
+
+    @Query("SELECT * FROM service_cycles ORDER BY startDateMillis DESC")
+    suspend fun getAllCyclesOnce(): List<ServiceCycle>
+
+    @Query("DELETE FROM service_cycles")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWithId(cycle: ServiceCycle): Long
 }

@@ -162,7 +162,12 @@ class MainActivity : AppCompatActivity() {
                 val success = com.delivery.tracker.utils.DataExporter.import(db, json)
                 withContext(Dispatchers.Main) {
                     if (success) {
-                        Toast.makeText(this@MainActivity, "Data imported ✅ — Restart app to refresh", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this@MainActivity, "Data imported ✅ Restarting…", Toast.LENGTH_SHORT).show()
+                        // Issue 4: Restart the app so all LiveData/ViewModels reload fresh
+                        val intent = packageManager.getLaunchIntentForPackage(packageName)
+                        intent?.addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        startActivity(intent)
+                        android.os.Process.killProcess(android.os.Process.myPid())
                     } else {
                         Toast.makeText(this@MainActivity, "Import failed — invalid file", Toast.LENGTH_LONG).show()
                     }

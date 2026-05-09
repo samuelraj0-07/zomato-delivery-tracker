@@ -72,11 +72,9 @@ interface SessionDao {
      * This correctly accounts for personal riding days (no delivery sessions)
      * because it uses the actual last-known odometer, not just delivery session sums.
      */
-    @Query("""
-        SELECT MAX(endOdometer) FROM daily_sessions
-        WHERE serviceCycleId = :cycleId
-        AND isEnded = 1
-        AND endOdometer > 0
-    """)
-    suspend fun getMaxEndOdometerForCycle(cycleId: Long): Double?
+    @Query("DELETE FROM daily_sessions")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWithId(session: DailySession): Long
 }

@@ -91,12 +91,24 @@ interface ExpenseDao {
     """)
     suspend fun linkFuelToCycle(cycleId: Long, cycleStartOdo: Double, cycleEndOdo: Double)
 
-    @Query("""
-        UPDATE service_entries
-        SET serviceCycleId = :cycleId
-        WHERE serviceCycleId = 0
-        AND odometerReading >= :cycleStartOdo
-        AND (:cycleEndOdo = 0.0 OR odometerReading < :cycleEndOdo)
-    """)
-    suspend fun linkServiceToCycle(cycleId: Long, cycleStartOdo: Double, cycleEndOdo: Double)
+    @Query("DELETE FROM fuel_entries")
+    suspend fun deleteAllFuel()
+
+    @Query("DELETE FROM service_entries")
+    suspend fun deleteAllService()
+
+    @Query("DELETE FROM tds_entries")
+    suspend fun deleteAllTds()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertFuelWithId(entry: FuelEntry): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertServiceWithId(entry: ServiceEntry): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTdsWithId(entry: TdsEntry): Long
+
+    @Query("SELECT * FROM tds_entries ORDER BY weekStartMillis DESC")
+    suspend fun getTdsForExport(): List<TdsEntry>
 }

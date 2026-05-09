@@ -56,7 +56,10 @@ class AnalyticsViewModel @Inject constructor(
 
     private fun processAnalytics(trips: List<Trip>) {
         viewModelScope.launch {
-            val byRestaurant = trips.groupBy { it.restaurantName.trim() }
+            // Issue 7: Exclude incentive entries (restaurantName starts with "🎁")
+            // from restaurant analytics — they are incentives, not actual restaurants
+            val deliveryTrips = trips.filter { !it.restaurantName.startsWith("🎁") }
+            val byRestaurant = deliveryTrips.groupBy { it.restaurantName.trim() }
             val restaurantStats = byRestaurant.map { (name, list) ->
                 val bestHour = list.groupBy { parseHour(it.assignedTime) }
                     .maxByOrNull { it.value.size }?.key ?: 0
@@ -70,20 +73,20 @@ class AnalyticsViewModel @Inject constructor(
                 )
             }.sortedByDescending { it.orderCount }
 
-            val byHour   = trips.groupBy { parseHour(it.assignedTime) }
+            val byHour   = deliveryTrips.groupBy { parseHour(it.assignedTime) }
             val hourStats = (0..23).map { h ->
                 HourStat(h, formatHour(h), byHour[h]?.size ?: 0)
             }
             val peakHour   = hourStats.maxByOrNull { it.orderCount }
-            val uniqueDays = trips.map { it.dateMillis / 86_400_000L }.toSet().size
+            val uniqueDays = deliveryTrips.map { it.dateMillis / 86_400_000L }.toSet().size
 
             _analyticsSummary.value = AnalyticsSummary(
                 restaurantStats    = restaurantStats,
                 hourStats          = hourStats,
-                totalTripsAnalyzed = trips.size,
+                totalTripsAnalyzed = deliveryTrips.size,
                 topRestaurant      = restaurantStats.firstOrNull()?.name ?: "",
                 peakHour           = peakHour?.label ?: "",
-                avgOrdersPerDay    = if (uniqueDays > 0) trips.size.toDouble() / uniqueDays else 0.0
+                avgOrdersPerDay    = if (uniqueDays > 0) deliveryTrips.size.toDouble() / uniqueDays else 0.0
             )
         }
     }
