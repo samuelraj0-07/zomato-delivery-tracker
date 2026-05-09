@@ -77,11 +77,6 @@ interface ExpenseDao {
     @Query("SELECT * FROM service_entries ORDER BY dateMillis DESC")
     suspend fun getServiceForExport(): List<ServiceEntry>
 
-    /**
-     * Links fuel entries to a cycle retroactively by odometer reading.
-     * Matches entries whose odometerReading >= cycleStartOdo
-     * AND (cycleEndOdo = 0 means active = no upper bound, else < cycleEndOdo)
-     */
     @Query("""
         UPDATE fuel_entries
         SET serviceCycleId = :cycleId
@@ -90,6 +85,15 @@ interface ExpenseDao {
         AND (:cycleEndOdo = 0.0 OR odometerReading < :cycleEndOdo)
     """)
     suspend fun linkFuelToCycle(cycleId: Long, cycleStartOdo: Double, cycleEndOdo: Double)
+
+    @Query("""
+        UPDATE service_entries
+        SET serviceCycleId = :cycleId
+        WHERE serviceCycleId = 0
+        AND odometerReading >= :cycleStartOdo
+        AND (:cycleEndOdo = 0.0 OR odometerReading < :cycleEndOdo)
+    """)
+    suspend fun linkServiceToCycle(cycleId: Long, cycleStartOdo: Double, cycleEndOdo: Double)
 
     @Query("DELETE FROM fuel_entries")
     suspend fun deleteAllFuel()
