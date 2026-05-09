@@ -1,35 +1,18 @@
-package com.delivery.tracker.data.db
+package com.delivery.tracker.data.model
 
-import androidx.lifecycle.LiveData
-import androidx.room.*
-import com.delivery.tracker.data.model.ServiceCycle
+import androidx.room.Entity
+import androidx.room.PrimaryKey
 
-@Dao
-interface ServiceCycleDao {
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(cycle: ServiceCycle): Long
-
-    @Update
-    suspend fun update(cycle: ServiceCycle)
-
-    @Query("SELECT * FROM service_cycles WHERE isActive = 1 LIMIT 1")
-    fun getActiveCycle(): LiveData<ServiceCycle?>
-
-    @Query("SELECT * FROM service_cycles WHERE isActive = 1 LIMIT 1")
-    suspend fun getActiveCycleOnce(): ServiceCycle?
-
-    @Query("SELECT * FROM service_cycles ORDER BY startDateMillis DESC")
-    fun getAllCycles(): LiveData<List<ServiceCycle>>
-
-    @Delete
-    suspend fun delete(cycle: ServiceCycle)
-
-    @Query("SELECT * FROM service_cycles ORDER BY startDateMillis DESC")
-    suspend fun getAllCyclesOnce(): List<ServiceCycle>
-
-    @Query("DELETE FROM service_cycles")
-    suspend fun deleteAll()
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertWithId(cycle: ServiceCycle): Long
+@Entity(tableName = "service_cycles")
+data class ServiceCycle(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val startOdometer: Double,
+    val endOdometer: Double = 0.0,
+    val startDateMillis: Long,
+    val endDateMillis: Long = 0L,
+    val isActive: Boolean = true
+) {
+    val kmCovered: Double
+        get() = if (endOdometer > startOdometer) endOdometer - startOdometer else 0.0
 }

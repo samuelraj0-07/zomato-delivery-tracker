@@ -26,7 +26,7 @@ interface TripDao {
 
     @Query("SELECT * FROM trips WHERE servicecycleId = :cycleId ORDER BY dateMillis ASC")
     suspend fun getTripsByCycleOnce(cycleId: Long): List<Trip>
-    
+
     @Query("SELECT * FROM trips WHERE dateMillis BETWEEN :startMillis AND :endMillis")
     suspend fun getTripsForRange(startMillis: Long, endMillis: Long): List<Trip>
 
@@ -42,8 +42,12 @@ interface TripDao {
     @Query("SELECT SUM(orderPay) FROM trips WHERE dateMillis BETWEEN :start AND :end")
     suspend fun getTotalOrderPay(start: Long, end: Long): Double?
 
+    @Query("SELECT SUM(screenshotDistance) FROM trips WHERE dateMillis BETWEEN :start AND :end")
+    suspend fun getTotalDistance(start: Long, end: Long): Double?
+
     @Query("DELETE FROM trips")
     suspend fun deleteAll()
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWithId(trip: Trip): Long
+}

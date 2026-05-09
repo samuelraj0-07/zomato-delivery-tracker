@@ -26,4 +26,10 @@ interface ServiceCycleDao {
 
     @Query("SELECT * FROM service_cycles ORDER BY startDateMillis DESC")
     suspend fun getAllCyclesOnce(): List<ServiceCycle>
+
+    @Query("DELETE FROM service_cycles")
+    suspend fun deleteAll()
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertWithId(cycle: ServiceCycle): Long
 }

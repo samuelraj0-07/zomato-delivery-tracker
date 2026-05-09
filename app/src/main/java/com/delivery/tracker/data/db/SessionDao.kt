@@ -33,12 +33,6 @@ interface SessionDao {
     @Query("SELECT MAX(endOdometer) FROM daily_sessions WHERE isEnded = 1 AND isRetroactive = 0")
     suspend fun getMaxEndOdometer(): Double?
 
-    /**
-     * Links sessions to a cycle retroactively.
-     * Matches sessions whose startOdometer >= cycle.startOdometer
-     * AND (endOdometer <= cycle.endOdometer OR cycle is still active = endOdometer is 0).
-     * Called whenever a new cycle is started or the cycle tab is opened.
-     */
     @Query("""
         UPDATE daily_sessions
         SET serviceCycleId = :cycleId
@@ -66,12 +60,14 @@ interface SessionDao {
     """)
     suspend fun getTotalKmForCycle(cycleId: Long): Double?
 
-    /**
-     * Returns the highest endOdometer from all sessions linked to this cycle.
-     * Used for Run: calculation = maxEndOdo - cycle.startOdometer.
-     * This correctly accounts for personal riding days (no delivery sessions)
-     * because it uses the actual last-known odometer, not just delivery session sums.
-     */
+    @Query("""
+        SELECT MAX(endOdometer) FROM daily_sessions
+        WHERE serviceCycleId = :cycleId
+        AND isEnded = 1
+        AND endOdometer > 0
+    """)
+    suspend fun getMaxEndOdometerForCycle(cycleId: Long): Double?
+
     @Query("DELETE FROM daily_sessions")
     suspend fun deleteAll()
 
