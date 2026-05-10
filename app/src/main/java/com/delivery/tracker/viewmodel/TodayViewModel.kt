@@ -1,19 +1,20 @@
 package com.delivery.tracker.viewmodel
 
 import androidx.lifecycle.LiveData
-import androidx.lifecycle.Observer
 import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModel
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.launch
 import com.delivery.tracker.data.db.SubOrderDao
 import com.delivery.tracker.data.model.*
 import com.delivery.tracker.data.repository.*
 import com.delivery.tracker.ocr.OcrResult
 import com.delivery.tracker.utils.DateUtils
 import com.delivery.tracker.utils.SingleLiveEvent
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.launch
+import java.util.Calendar
+import javax.inject.Inject
 
 data class TodaySummary(
     val totalTrips: Int = 0,
@@ -56,6 +57,11 @@ class TodayViewModel @Inject constructor(
     private val _odometerError = MutableLiveData<String>()
     val odometerError: LiveData<String> = _odometerError
 
+    /** Set of day-start epoch millis for each day in the current calendar month
+     *  that has a recorded session — used to highlight ride days on the calendar. */
+    private val _rideDaysInMonth = MutableLiveData<Set<Long>>()
+    val rideDaysInMonth: LiveData<Set<Long>> = _rideDaysInMonth
+
     init {
         _activeSession.observeForever { session ->
             if (session != null) {
@@ -67,12 +73,31 @@ class TodayViewModel @Inject constructor(
                 _todayTrips.value = emptyList()
             }
         }
+        loadRideDaysForCurrentMonth()
     }
 
     fun setSelectedDate(dateMillis: Long) {
         if (_activeSession.value == null) {
             _selectedDateMillis.value = dateMillis
         }
+    }
+
+    /** Call when user navigates to a different month on the calendar. */
+    fun loadRideDaysForMonth(year: Int, month: Int) {
+        viewModelScope.launch {
+            val cal = Calendar.getInstance().apply { set(year, month, 1, 0, 0, 0); set(Calendar.MILLISECOND, 0) }
+            val start = cal.timeInMillis
+            cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+            cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59); cal.set(Calendar.SECOND, 59)
+            val end = cal.timeInMillis
+            val dates = sessionRepo.getSessionDateMillisInRange(start, end)
+            _rideDaysInMonth.value = dates.map { DateUtils.startOfDay(it) }.toSet()
+        }
+    }
+
+    private fun loadRideDaysForCurrentMonth() {
+        val cal = Calendar.getInstance()
+        loadRideDaysForMonth(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH))
     }
 
     private var tripsSource: LiveData<List<Trip>>? = null
@@ -118,7 +143,6 @@ class TodayViewModel @Inject constructor(
         val totalExtras     = trips.sumOf { it.totalExtras }
         val totalScreenDist = trips.sumOf { it.screenshotDistance }
         val actualDist      = session.actualDistance
-
         _todaySummary.value = TodaySummary(
             totalTrips              = trips.size,
             totalOrderPay           = totalOrderPay,
@@ -132,17 +156,6 @@ class TodayViewModel @Inject constructor(
         )
     }
 
-    /**
-     * Start a day session for the given [dateMillis].
-     *
-     * Odometer validation is now DATE-AWARE:
-     * - Start odo must be >= the max end odo of sessions BEFORE this date
-     *   (so filling in 5th May with 22044 is valid even if 8th May has 22266)
-     * - Start odo must be <= the min start odo of sessions AFTER this date
-     *   (so you can't enter a value that would exceed a later day's reading)
-     * - End odo (entered via endDay) must be <= the start odo of the next
-     *   recorded day after this date
-     */
     fun startDay(startOdometer: Double, dateMillis: Long = _selectedDateMillis.value ?: System.currentTimeMillis()) {
         viewModelScope.launch {
             val existing = sessionRepo.getActiveSessionOnce()
@@ -150,7 +163,6 @@ class TodayViewModel @Inject constructor(
 
             val dayStart = DateUtils.startOfDay(dateMillis)
 
-            // Check against sessions that come BEFORE this date only
             val maxBefore = sessionRepo.getMaxEndOdometerBefore(dayStart) ?: 0.0
             if (maxBefore > 0 && startOdometer < maxBefore) {
                 _odometerError.value =
@@ -159,7 +171,6 @@ class TodayViewModel @Inject constructor(
                 return@launch
             }
 
-            // Check against sessions that come AFTER this date only
             val minAfter = sessionRepo.getMinStartOdometerAfter(dayStart) ?: 0.0
             if (minAfter > 0 && startOdometer > minAfter) {
                 _odometerError.value =
@@ -177,6 +188,9 @@ class TodayViewModel @Inject constructor(
                 )
             )
             _sessionStarted.value = true
+            // Refresh calendar so newly started day lights up
+            val cal = Calendar.getInstance().apply { timeInMillis = dayStart }
+            loadRideDaysForMonth(cal.get(Calendar.YEAR), cal.get(Calendar.MONTH))
         }
     }
 
@@ -191,7 +205,6 @@ class TodayViewModel @Inject constructor(
                 return@launch
             }
 
-            // End odo must not exceed the start odo of the next recorded day
             val minAfter = sessionRepo.getMinStartOdometerAfter(session.dateMillis) ?: 0.0
             if (minAfter > 0 && endOdometer > minAfter) {
                 _odometerError.value =

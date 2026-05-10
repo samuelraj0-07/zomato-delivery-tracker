@@ -49,6 +49,22 @@ class HistoryFragment : Fragment() {
         return binding.root
     }
 
+    override fun onResume() {
+        super.onResume()
+        // Issue 2: When returning to this tab, always reset to DAY tab visually
+        // and force a data reload so content matches the selected tab, not stale week/month data.
+        val currentTabPosition = binding.tabMode.selectedTabPosition
+        if (currentTabPosition != 0) {
+            // User left while on week/month — snap back to DAY tab
+            binding.tabMode.getTabAt(0)?.select()
+            // setViewMode triggers loadData() so content updates immediately
+            viewModel.setViewMode(HistoryViewMode.DAY)
+        } else {
+            // Already on DAY tab but content may be stale — force reload
+            viewModel.setViewMode(HistoryViewMode.DAY)
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
