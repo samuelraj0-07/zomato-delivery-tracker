@@ -34,21 +34,30 @@ class SessionRepository @Inject constructor(
 
     suspend fun getMaxEndOdometer(): Double? = sessionDao.getMaxEndOdometer()
 
+    /**
+     * Max end odometer from sessions strictly BEFORE the given date.
+     * Used for retroactive date-aware validation.
+     */
+    suspend fun getMaxEndOdometerBefore(beforeDateMillis: Long): Double? =
+        sessionDao.getMaxEndOdometerBefore(beforeDateMillis)
+
+    /**
+     * Min start odometer from sessions strictly AFTER the given date.
+     * Used to ensure a retroactive entry doesn't exceed the next recorded day.
+     */
+    suspend fun getMinStartOdometerAfter(afterDateMillis: Long): Double? =
+        sessionDao.getMinStartOdometerAfter(afterDateMillis)
+
     suspend fun getTotalKmForCycle(cycleId: Long): Double =
         sessionDao.getTotalKmForCycle(cycleId) ?: 0.0
 
-    /**
-     * Retroactively stamps serviceCycleId on any sessions that have
-     * serviceCycleId=0 and whose odometer falls within this cycle's range.
-     * cycleEndOdo = 0.0 means the cycle is still active (no upper bound).
-     */
     suspend fun linkSessionsToCycle(cycleId: Long, cycleStartOdo: Double, cycleEndOdo: Double) =
         sessionDao.linkSessionsToCycle(cycleId, cycleStartOdo, cycleEndOdo)
 
     suspend fun getMaxEndOdometerForCycle(cycleId: Long): Double =
         sessionDao.getMaxEndOdometerForCycle(cycleId) ?: 0.0
 
-    suspend fun deleteSession(session: com.delivery.tracker.data.model.DailySession) =
+    suspend fun deleteSession(session: DailySession) =
         sessionDao.deleteSession(session)
 
     suspend fun deleteTripsForSession(sessionId: Long) =

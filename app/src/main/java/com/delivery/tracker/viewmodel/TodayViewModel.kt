@@ -35,7 +35,6 @@ class TodayViewModel @Inject constructor(
     private val subOrderDao: SubOrderDao
 ) : ViewModel() {
 
-    /** The date the user has chosen for this session (defaults to today). */
     private val _selectedDateMillis = MutableLiveData(System.currentTimeMillis())
     val selectedDateMillis: LiveData<Long> = _selectedDateMillis
 
@@ -60,11 +59,9 @@ class TodayViewModel @Inject constructor(
     init {
         _activeSession.observeForever { session ->
             if (session != null) {
-                // Sync the displayed date to the session's actual date
                 _selectedDateMillis.value = session.dateMillis
                 loadTodayTrips(session.id)
             } else {
-                // Session ended or no session — clear the trip list from screen
                 tripsSource?.removeObserver(tripsObserver)
                 tripsSource = null
                 _todayTrips.value = emptyList()
@@ -73,7 +70,6 @@ class TodayViewModel @Inject constructor(
     }
 
     fun setSelectedDate(dateMillis: Long) {
-        // Only allow changing the date when no active session exists
         if (_activeSession.value == null) {
             _selectedDateMillis.value = dateMillis
         }
@@ -86,7 +82,7 @@ class TodayViewModel @Inject constructor(
     }
 
     private fun loadTodayTrips(sessionId: Long) {
-        tripsSource?.removeObserver(tripsObserver)       // remove old session's observer
+        tripsSource?.removeObserver(tripsObserver)
         val liveData = tripRepo.getTripsBySession(sessionId)
         tripsSource  = liveData
         liveData.observeForever(tripsObserver)
@@ -94,7 +90,7 @@ class TodayViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
-        tripsSource?.removeObserver(tripsObserver)       // cleanup on VM death
+        tripsSource?.removeObserver(tripsObserver)
     }
 
     private fun recalculateSummary(trips: List<Trip>) {
@@ -117,10 +113,6 @@ class TodayViewModel @Inject constructor(
         )
     }
 
-    // Keep the existing recalculateSummary() exactly as is, then ADD this below it:
-
-    // New overload that accepts an explicit session (used by endDay so we
-    // don't depend on LiveData catching up after the DB write)
     private fun recalculateSummaryWithSession(session: DailySession, trips: List<Trip>) {
         val totalOrderPay   = trips.sumOf { it.orderPay }
         val totalExtras     = trips.sumOf { it.totalExtras }
@@ -140,31 +132,46 @@ class TodayViewModel @Inject constructor(
         )
     }
 
-
-
-
     /**
-     * Start a day session for the given [dateMillis] (defaults to selectedDateMillis).
-     * This allows feeding in past data by picking an earlier date before starting.
+     * Start a day session for the given [dateMillis].
+     *
+     * Odometer validation is now DATE-AWARE:
+     * - Start odo must be >= the max end odo of sessions BEFORE this date
+     *   (so filling in 5th May with 22044 is valid even if 8th May has 22266)
+     * - Start odo must be <= the min start odo of sessions AFTER this date
+     *   (so you can't enter a value that would exceed a later day's reading)
+     * - End odo (entered via endDay) must be <= the start odo of the next
+     *   recorded day after this date
      */
     fun startDay(startOdometer: Double, dateMillis: Long = _selectedDateMillis.value ?: System.currentTimeMillis()) {
         viewModelScope.launch {
             val existing = sessionRepo.getActiveSessionOnce()
             if (existing != null) { _sessionStarted.value = true; return@launch }
 
-            // Validate: startOdometer must be >= the highest endOdometer ever recorded
-            val maxPrevOdometer = sessionRepo.getMaxEndOdometer() ?: 0.0
-            if (maxPrevOdometer > 0 && startOdometer < maxPrevOdometer) {
+            val dayStart = DateUtils.startOfDay(dateMillis)
+
+            // Check against sessions that come BEFORE this date only
+            val maxBefore = sessionRepo.getMaxEndOdometerBefore(dayStart) ?: 0.0
+            if (maxBefore > 0 && startOdometer < maxBefore) {
                 _odometerError.value =
-                    "Start odometer (%.1f km) is less than last recorded reading (%.1f km)."
-                        .format(startOdometer, maxPrevOdometer)
+                    "Start odometer (%.1f km) is less than the previous day's reading (%.1f km)."
+                        .format(startOdometer, maxBefore)
+                return@launch
+            }
+
+            // Check against sessions that come AFTER this date only
+            val minAfter = sessionRepo.getMinStartOdometerAfter(dayStart) ?: 0.0
+            if (minAfter > 0 && startOdometer > minAfter) {
+                _odometerError.value =
+                    "Start odometer (%.1f km) exceeds the next recorded day's reading (%.1f km)."
+                        .format(startOdometer, minAfter)
                 return@launch
             }
 
             val cycle = cycleRepo.getActiveCycleOnce()
             sessionRepo.startSession(
                 DailySession(
-                    dateMillis     = DateUtils.startOfDay(dateMillis),
+                    dateMillis     = dayStart,
                     startOdometer  = startOdometer,
                     serviceCycleId = cycle?.id ?: 0L
                 )
@@ -177,11 +184,19 @@ class TodayViewModel @Inject constructor(
         viewModelScope.launch {
             val session = sessionRepo.getActiveSessionOnce() ?: return@launch
 
-            // Validate: endOdometer must be greater than startOdometer
             if (endOdometer <= session.startOdometer) {
                 _odometerError.value =
                     "End odometer (%.1f km) must be greater than start odometer (%.1f km)."
                         .format(endOdometer, session.startOdometer)
+                return@launch
+            }
+
+            // End odo must not exceed the start odo of the next recorded day
+            val minAfter = sessionRepo.getMinStartOdometerAfter(session.dateMillis) ?: 0.0
+            if (minAfter > 0 && endOdometer > minAfter) {
+                _odometerError.value =
+                    "End odometer (%.1f km) exceeds the next recorded day's start (%.1f km)."
+                        .format(endOdometer, minAfter)
                 return@launch
             }
 
@@ -239,7 +254,6 @@ class TodayViewModel @Inject constructor(
         }
     }
 
-    /** Add multiple trips from a parsed JSON list (one per element). */
     fun addTripsFromOcrList(results: List<OcrResult>) {
         viewModelScope.launch {
             val session = sessionRepo.getActiveSessionOnce() ?: return@launch
