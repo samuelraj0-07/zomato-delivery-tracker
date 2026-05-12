@@ -533,7 +533,7 @@ class ExpensesFragment : Fragment() {
     }
 
     private fun showWeekListForMonth(month: Int, year: Int) {
-        val weeks = DateUtils.weeksOverlappingMonth(month, year)
+        val weeks = DateUtils.weeksOverlappingMonth(year, month)   // ← was (month, year) — WRONG
         val labels = weeks.map { it.first }.toTypedArray()
 
         // Pre-select the week containing today if browsing current month
