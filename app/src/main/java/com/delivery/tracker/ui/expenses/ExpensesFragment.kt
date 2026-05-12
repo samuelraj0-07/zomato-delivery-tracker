@@ -66,8 +66,8 @@ class ExpensesFragment : Fragment() {
         // Show last known odometer as hint so users don't enter wrong values
         viewModel.getLastKnownOdometer { lastOdo ->
             if (lastOdo > 0) {
-                binding.tilFuelOdometer.hint    = "Odometer Reading (km)  •  Last: ${lastOdo.toInt()} km"
-                binding.tilServiceOdometer.hint = "Odometer Reading (km)  •  Last: ${lastOdo.toInt()} km"
+                binding.tilFuelOdometer.hint    = "Odometer Reading (km)  •  Last: ${String.format("%.1f", lastOdo)} km"
+                binding.tilServiceOdometer.hint = "Odometer Reading (km)  •  Last: ${String.format("%.1f", lastOdo)} km"
             }
         }
     }
@@ -95,8 +95,8 @@ class ExpensesFragment : Fragment() {
             binding.apply {
                 // Use kmRidden from summary (session-based for active cycle, odo-diff for ended)
                 tvCycleProgress.text =
-                    "Started: ${cycle.startOdometer.toInt()} km  |  " +
-                    "Run: ${summary.kmRidden.toInt()} km  |  " +
+                    "Started: ${String.format(\"%.1f\", cycle.startOdometer)} km  |  " +
+                    "Run: ${String.format(\"%.1f\", summary.kmRidden)} km  |  " +
                     "From: ${fmt.format(java.util.Date(cycle.startDateMillis))}"
                 pbCycle.visibility = View.GONE
 
@@ -277,7 +277,7 @@ class ExpensesFragment : Fragment() {
             }
             val infoTv = TextView(ctx).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "${fmt.format(java.util.Date(entry.dateMillis))}  •  ${entry.odometerReading.toInt()} km  •  ₹${entry.fuelPricePerLitre}/L"
+                text = "${fmt.format(java.util.Date(entry.dateMillis))}  •  ${String.format(\"%.1f\", entry.odometerReading)} km  •  ₹${entry.fuelPricePerLitre}/L"
                 textSize = 12f
                 setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
             }
@@ -350,7 +350,7 @@ class ExpensesFragment : Fragment() {
             }
             val infoTv = TextView(ctx).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "${fmt.format(java.util.Date(entry.dateMillis))}  •  ${entry.odometerReading.toInt()} km  •  ${entry.details}"
+                text = "${fmt.format(java.util.Date(entry.dateMillis))}  •  ${String.format(\"%.1f\", entry.odometerReading)} km  •  ${entry.details}"
                 textSize = 12f
                 setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
             }
@@ -580,7 +580,7 @@ class ExpensesFragment : Fragment() {
         layout.addView(etStartOdo)
 
         viewModel.getLastKnownOdometer { lastOdo ->
-            if (lastOdo > 0) etStartOdo.setText(lastOdo.toInt().toString())
+            if (lastOdo > 0) etStartOdo.setText(String.format("%.1f", lastOdo))
         }
 
 
@@ -711,7 +711,7 @@ class ExpensesFragment : Fragment() {
             }
 
             val statusBadge = if (cycle.isActive) " 🟢 Active" else " ⚫ Ended"
-            val endText = if (cycle.endOdometer > 0) " → ${cycle.endOdometer.toInt()} km" else ""
+            val endText = if (cycle.endOdometer > 0) " → ${String.format("%.1f", cycle.endOdometer)} km" else ""
 
             val infoRow = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -723,7 +723,7 @@ class ExpensesFragment : Fragment() {
                 textSize = 13f
                 setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_primary))
                 text = "${fmt.format(java.util.Date(cycle.startDateMillis))}$statusBadge\n" +
-                    "Odo: ${cycle.startOdometer.toInt()}$endText km  |  Run: ${cycle.kmCovered.toInt()} km"
+                    "Odo: ${String.format(\"%.1f\", cycle.startOdometer)}$endText km  |  Run: ${String.format(\"%.1f\", cycle.kmCovered)} km"
             }
 
             // Fetch live details per cycle and add a second detail row
@@ -805,7 +805,7 @@ class ExpensesFragment : Fragment() {
             hint = "Start Odometer (km)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or
                     android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(cycle.startOdometer.toInt().toString())
+            setText(String.format("%.1f", cycle.startOdometer))
         }
         layout.addView(etStartOdo)
 
@@ -813,7 +813,7 @@ class ExpensesFragment : Fragment() {
             hint = "End Odometer (km) — leave 0 if still active"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or
                     android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(if (cycle.endOdometer > 0) cycle.endOdometer.toInt().toString() else "")
+            setText(if (cycle.endOdometer > 0) String.format("%.1f", cycle.endOdometer) else "")
         }
         layout.addView(etEndOdo)
 
@@ -899,7 +899,7 @@ class ExpensesFragment : Fragment() {
             hint = "Odometer (km)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or
                     android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(entry.odometerReading.toInt().toString())
+            setText(String.format("%.1f", entry.odometerReading))
         }
         val etPrice = android.widget.EditText(ctx).apply {
             hint = "Price per Litre (₹)"
@@ -961,7 +961,7 @@ class ExpensesFragment : Fragment() {
             hint = "Odometer (km)"
             inputType = android.text.InputType.TYPE_CLASS_NUMBER or
                     android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(entry.odometerReading.toInt().toString())
+            setText(String.format("%.1f", entry.odometerReading))
         }
         val etAmount = android.widget.EditText(ctx).apply {
             hint = "Amount Spent (₹)"
