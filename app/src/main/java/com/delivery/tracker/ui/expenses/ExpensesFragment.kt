@@ -66,8 +66,8 @@ class ExpensesFragment : Fragment() {
         // Show last known odometer as hint so users don't enter wrong values
         viewModel.getLastKnownOdometer { lastOdo ->
             if (lastOdo > 0) {
-                binding.tilFuelOdometer.hint    = "Odometer Reading (km)  •  Last: ${String.format(\"%.1f\", lastOdo)} km"
-                binding.tilServiceOdometer.hint = "Odometer Reading (km)  •  Last: ${String.format(\"%.1f\", lastOdo)} km"
+                binding.tilFuelOdometer.hint    = "Odometer Reading (km)  •  Last: ${String.format("%.1f", lastOdo)} km"
+                binding.tilServiceOdometer.hint = "Odometer Reading (km)  •  Last: ${String.format("%.1f", lastOdo)} km"
             }
         }
     }
@@ -95,8 +95,8 @@ class ExpensesFragment : Fragment() {
             binding.apply {
                 // Use kmRidden from summary (session-based for active cycle, odo-diff for ended)
                 tvCycleProgress.text =
-                    "Started: ${String.format(\"%.1f\", cycle.startOdometer)} km  |  " +
-                    "Run: ${String.format(\"%.1f\", summary.kmRidden)} km  |  " +
+                    "Started: ${String.format("%.1f", cycle.startOdometer)} km  |  " +
+                    "Run: ${String.format("%.1f", summary.kmRidden)} km  |  " +
                     "From: ${fmt.format(java.util.Date(cycle.startDateMillis))}"
                 pbCycle.visibility = View.GONE
 
@@ -277,7 +277,7 @@ class ExpensesFragment : Fragment() {
             }
             val infoTv = TextView(ctx).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "${fmt.format(java.util.Date(entry.dateMillis))}  •  ${String.format(\"%.1f\", entry.odometerReading)} km  •  ₹${entry.fuelPricePerLitre}/L"
+                text = "${fmt.format(java.util.Date(entry.dateMillis))}  •  ${String.format("%.1f", entry.odometerReading)} km  •  ₹${entry.fuelPricePerLitre}/L"
                 textSize = 12f
                 setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
             }
@@ -350,7 +350,7 @@ class ExpensesFragment : Fragment() {
             }
             val infoTv = TextView(ctx).apply {
                 layoutParams = LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f)
-                text = "${fmt.format(java.util.Date(entry.dateMillis))}  •  ${String.format(\"%.1f\", entry.odometerReading)} km  •  ${entry.details}"
+                text = "${fmt.format(java.util.Date(entry.dateMillis))}  •  ${String.format("%.1f", entry.odometerReading)} km  •  ${entry.details}"
                 textSize = 12f
                 setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_secondary))
             }
@@ -711,7 +711,7 @@ class ExpensesFragment : Fragment() {
             }
 
             val statusBadge = if (cycle.isActive) " 🟢 Active" else " ⚫ Ended"
-            val endText = if (cycle.endOdometer > 0) " → ${String.format(\"%.1f\", cycle.endOdometer)} km" else ""
+            val endText = if (cycle.endOdometer > 0) " → ${String.format("%.1f", cycle.endOdometer)} km" else ""
 
             val infoRow = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
@@ -723,7 +723,7 @@ class ExpensesFragment : Fragment() {
                 textSize = 13f
                 setTextColor(ctx.getColor(com.delivery.tracker.R.color.text_primary))
                 text = "${fmt.format(java.util.Date(cycle.startDateMillis))}$statusBadge\n" +
-                    "Odo: ${String.format(\"%.1f\", cycle.startOdometer)}$endText km  |  Run: ${String.format(\"%.1f\", cycle.kmCovered)} km"
+                    "Odo: ${String.format("%.1f", cycle.startOdometer)}$endText km  |  Run: ${String.format("%.1f", cycle.kmCovered)} km"
             }
 
             // Fetch live details per cycle and add a second detail row
