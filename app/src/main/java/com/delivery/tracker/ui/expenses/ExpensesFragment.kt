@@ -66,8 +66,8 @@ class ExpensesFragment : Fragment() {
         // Show last known odometer as hint so users don't enter wrong values
         viewModel.getLastKnownOdometer { lastOdo ->
             if (lastOdo > 0) {
-                binding.tilFuelOdometer.hint    = "Odometer Reading (km)  •  Last: ${String.format("%.1f", lastOdo)} km"
-                binding.tilServiceOdometer.hint = "Odometer Reading (km)  •  Last: ${String.format("%.1f", lastOdo)} km"
+                binding.tilFuelOdometer.hint    = "Odometer Reading (km)  •  Last: ${String.format(\"%.1f\", lastOdo)} km"
+                binding.tilServiceOdometer.hint = "Odometer Reading (km)  •  Last: ${String.format(\"%.1f\", lastOdo)} km"
             }
         }
     }
@@ -711,7 +711,7 @@ class ExpensesFragment : Fragment() {
             }
 
             val statusBadge = if (cycle.isActive) " 🟢 Active" else " ⚫ Ended"
-            val endText = if (cycle.endOdometer > 0) " → ${String.format("%.1f", cycle.endOdometer)} km" else ""
+            val endText = if (cycle.endOdometer > 0) " → ${String.format(\"%.1f\", cycle.endOdometer)} km" else ""
 
             val infoRow = LinearLayout(ctx).apply {
                 orientation = LinearLayout.HORIZONTAL
